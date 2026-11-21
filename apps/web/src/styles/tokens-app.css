@@ -1,0 +1,134 @@
+/*
+ * Token cho khu vực học tập (đã đăng nhập).
+ * Nguồn: LoopEdu UI Components v1.0 · UI 01 Foundations (Documents/LoopEdu_Brand_Guidelines.html).
+ * Cách dùng: apps/web/DESIGN.md, mục "Token".
+ * Landing dùng token riêng trong tokens-landing.css; không sửa file này cho landing.
+ */
+
+@theme {
+  /* Primary & accent */
+  --color-primary: #167a45;
+  --color-primary-hover: #12663a;
+  --color-primary-pressed: #0e5530;
+  --color-record: #22c55e; /* accent.record: chỉ nút ghi âm và điểm nhấn xanh sáng */
+  --color-celebrate: #fec804; /* accent.celebrate: streak, tia sáng */
+
+  /* Text */
+  --color-fg: #1f2a24; /* text.primary 14.8:1 */
+  --color-fg-secondary: #4b5a52; /* text.secondary 7.3:1 */
+  --color-fg-muted: #5e6b64; /* text.muted 5.6:1 */
+  --color-heading: #02472e; /* text.heading */
+  --color-on-primary: #ffffff; /* text.on-primary */
+
+  /* Surface */
+  --color-surface: #ffffff; /* surface.page, nền thẻ */
+  --color-subtle: #f0faf3; /* surface.subtle: khối nền, hover nhẹ */
+  --color-selected: #ddf7e5; /* surface.selected: chọn, chip, nút Secondary ("Mint") */
+  --color-selected-hover: #cbefd6;
+  --color-selected-pressed: #b8e6c6;
+  --color-warm: #fefae5; /* surface.warm: nền minh họa */
+  --color-warm-line: #efe6bf;
+  --color-inverse: #02472e; /* surface.inverse: toast, nền tối */
+  --color-disabled: #eef2ef; /* surface.disabled, chữ đi kèm: fg-muted */
+  --color-overlay: rgb(2 71 46 / 0.45); /* lớp phủ hộp thoại, sheet */
+
+  /* Border */
+  --color-line: #d5e3da; /* border.subtle: thẻ, kẻ */
+  --color-line-input: #7c9488; /* border.input 3.3:1 */
+  --color-focus: #167a45; /* border.focus */
+
+  /* State: success dùng primary + selected */
+  --color-warning: #b45309;
+  --color-warning-bg: #fef3c7;
+  --color-warning-fg: #8a3f06;
+  --color-warning-subtle: #fffbeb; /* thẻ bài ôn quá hạn */
+  --color-warning-line: #f3d9a5;
+  --color-error: #b42318; /* cũng là border.error, nút Danger */
+  --color-error-hover: #9a1d13;
+  --color-error-pressed: #821910;
+  --color-error-bg: #fdecea;
+  --color-celebrate-bg: #fff8d6;
+  --color-celebrate-fg: #7a5a00;
+
+  /* Font: biến do next/font gắn ở app/layout.tsx */
+  --font-sans: var(--font-be-vietnam-pro), system-ui, sans-serif;
+  --font-display: var(--font-nunito), var(--font-be-vietnam-pro), system-ui, sans-serif;
+
+  /* Bo góc: xs tô từ/pattern · sm ô nhập, thẻ nhỏ · md thẻ · lg panel, sheet. Pill dùng rounded-full */
+  --radius-xs: 6px;
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+
+  /* Đổ bóng: chỉ bóng xanh Deep Forest, không dùng bóng đen */
+  --shadow-1: 0 1px 2px rgb(2 71 46 / 0.1), 0 0 0 1px var(--color-line); /* thẻ trên nền trắng */
+  --shadow-2: 0 8px 24px rgb(2 71 46 / 0.12); /* menu, toast, nút ghi âm */
+  --shadow-3: 0 24px 60px rgb(2 71 46 / 0.18); /* hộp thoại, bottom sheet */
+
+  /* Điểm ngắt: điện thoại 360–599 · máy tính bảng 600–1023 (sm) · máy tính ≥ 1024 (lg) */
+  --breakpoint-sm: 37.5rem;
+  --breakpoint-lg: 64rem;
+
+  /* Chiều rộng nội dung */
+  --container-content: 75rem; /* 1200 */
+  --container-reading: 45rem; /* 720, cột đọc màn luyện nói */
+}
+
+/* Kiểu chữ theo vai trò: luôn dùng type-* thay vì tự ghép cỡ/đậm/font. */
+@utility type-display {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 2rem;
+  line-height: 1.1;
+  color: var(--color-heading);
+  @media (width >= 37.5rem) {
+    font-size: 2.5rem;
+  }
+}
+@utility type-h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.75rem;
+  line-height: 2.125rem;
+  color: var(--color-heading);
+}
+@utility type-h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  color: var(--color-heading);
+}
+@utility type-title {
+  font-weight: 700;
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+}
+@utility type-reading {
+  font-weight: 400;
+  font-size: 1.125rem;
+  line-height: 1.875rem;
+}
+@utility type-body {
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+@utility type-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+@utility type-caption {
+  font-weight: 500;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+@utility type-overline {
+  font-weight: 700;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}

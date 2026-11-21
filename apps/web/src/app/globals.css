@@ -1,27 +1,42 @@
 @import "tailwindcss";
 
-/*
- * Brand tokens from Brand/loopedu-brand-assets/v1/README.txt.
- * Neutrals are provisional until the full brand guidelines are reconciled with the Figma file.
- */
+/* Bỏ bảng màu, bo góc, bóng mặc định của Tailwind: chỉ dùng token của LoopEdu. */
 @theme {
-  --color-forest-deep: #02472e;
-  --color-forest: #167a45;
-  --color-green-bright: #22c55e;
-  --color-leaf: #7ed957;
-
-  --color-page: #fbfaf6;
-  --color-surface: #ffffff;
-  --color-ink: #1f1e1d;
-  --color-ink-muted: #6b6a68;
-  --color-line: #e7e5e4;
-
-  --font-sans: var(--font-be-vietnam-pro), system-ui, sans-serif;
-  --font-display: var(--font-nunito), var(--font-be-vietnam-pro), system-ui, sans-serif;
+  --color-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --breakpoint-*: initial;
 }
 
-body {
-  background: var(--color-page);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
+@import "../styles/tokens-app.css";
+
+@layer base {
+  body {
+    background: var(--color-surface);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+
+  /* Viền focus 2 px cách 3 px cho mọi phần tử (UI 01). Ô nhập tự ghi đè bằng viền + vòng Mint. */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 3px;
+  }
+
+  /* Khóa cuộn trang nền khi Dialog đang mở (UI 07). */
+  html:has(dialog[open]:modal) {
+    overflow: hidden;
+  }
+
+  /* prefers-reduced-motion: tắt nhún, chỉ giữ đổi độ mờ. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-property: opacity !important;
+    }
+  }
 }

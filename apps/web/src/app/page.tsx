@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { Logo } from "@/components/shared";
 import { SECTIONS_BY_TRACK, REVIEW_OFFSETS_DAYS, type SectionCode } from "@loopedu/shared";
 
 const SECTION_LABELS: Record<SectionCode, string> = {
@@ -18,19 +18,13 @@ const TRACKS = [
 export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-4 py-12 sm:px-8">
-      <Image
-        src="/brand/loopedu-logo-horizontal.svg"
-        alt="LoopEdu"
-        width={182}
-        height={64}
-        priority
-      />
+      <Logo width={182} priority />
 
       <section className="flex flex-col gap-4">
-        <h1 className="font-display text-4xl font-extrabold tracking-tight text-forest-deep sm:text-5xl">
+        <h1 className="font-display text-4xl font-extrabold tracking-tight text-heading sm:text-5xl">
           Mỗi ngày 10 phút nói tiếng Anh
         </h1>
-        <p className="max-w-xl text-lg text-ink-muted">
+        <p className="max-w-xl text-lg text-fg-secondary">
           Luyện theo dạng đề IELTS hoặc TOEIC, nhận phản hồi từng từ, rồi tự nói lại sau{" "}
           {REVIEW_OFFSETS_DAYS.join(", ")} ngày.
         </p>
@@ -43,10 +37,10 @@ export default function Home() {
         {TRACKS.map((track) => (
           <article
             key={track.key}
-            className="rounded-3xl border border-line bg-surface p-6 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)]"
+            className="rounded-lg border border-line bg-surface p-6 shadow-1"
           >
-            <h3 className="font-display text-xl font-bold text-forest">{track.name}</h3>
-            <ul className="mt-3 flex flex-col gap-1 text-sm text-ink">
+            <h3 className="font-display text-xl font-bold text-primary">{track.name}</h3>
+            <ul className="mt-3 flex flex-col gap-1 text-sm text-fg">
               {SECTIONS_BY_TRACK[track.key].map((code) => (
                 <li key={code}>{SECTION_LABELS[code]}</li>
               ))}
@@ -55,7 +49,7 @@ export default function Home() {
         ))}
       </section>
 
-      <p className="text-sm text-ink-muted">
+      <p className="text-sm text-fg-secondary">
         Nội dung và phản hồi luyện tập, không phải tài liệu hay điểm IELTS/TOEIC chính thức.
       </p>
     </main>

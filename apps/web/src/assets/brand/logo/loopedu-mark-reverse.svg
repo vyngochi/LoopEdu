@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="502" height="512" viewBox="50 26 251 256" role="img" aria-label="LoopEdu">
+<title>LoopEdu</title>
+<g>
+  <path d="M79.53,203.46 A91.0,91.0 0 0 1 177.80,75.38 L180.06,62.58 L217.66,102.09 L171.55,110.84 L173.98,97.05 A69.0,69.0 0 0 0 99.46,194.16 A11.0,11.0 0 0 1 79.53,203.46 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M244.47,126.54 A91.0,91.0 0 0 1 146.20,254.62 L143.94,267.42 L106.34,227.91 L152.45,219.16 L150.02,232.95 A69.0,69.0 0 0 0 224.54,135.84 A11.0,11.0 0 0 1 244.47,126.54 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+  <rect x="123.50" y="155.50" width="9.0" height="22" rx="4.5" fill="#FFFFFF"/>
+  <rect x="141.00" y="148.00" width="9.0" height="37" rx="4.5" fill="#FFFFFF"/>
+  <rect x="158.50" y="135.00" width="9.0" height="63" rx="4.5" fill="#FFFFFF"/>
+  <rect x="176.00" y="148.00" width="9.0" height="37" rx="4.5" fill="#FFFFFF"/>
+  <rect x="193.50" y="155.50" width="9.0" height="22" rx="4.5" fill="#FFFFFF"/>
+  <line x1="239" y1="46" x2="233" y2="68" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
+  <line x1="269" y1="62" x2="250" y2="80" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
+  <line x1="279" y1="93" x2="260" y2="97" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
+</g>
+</svg>

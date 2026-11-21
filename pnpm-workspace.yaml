@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Native install scripts are opt-in in pnpm 11. None of these need them: their binaries come as optional deps.
+allowBuilds:
+  esbuild: false
+  sharp: false
+  unrs-resolver: false

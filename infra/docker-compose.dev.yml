@@ -1,0 +1,33 @@
+# Local development services. Run from the repo root:
+#   pnpm infra:up      (docker compose -f infra/docker-compose.dev.yml --env-file .env up -d)
+# Ports bind to 127.0.0.1 only. The home-server staging file will reuse the same images.
+name: loopedu-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Audio storage is Cloudflare R2 (bucket loopedu-voice-dev), not a local container; see README.
+
+  # Catches magic-link emails locally: SMTP on 1025, inbox UI on http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+volumes:
+  pgdata:

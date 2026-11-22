@@ -1,0 +1,49 @@
+/*
+ * Token riêng cho landing (chưa đăng nhập). Nguồn: Documents/temp_doc/landing-v1.html.
+ * Màu dùng chung (primary, heading, selected, subtle, warm, record, celebrate, line…) lấy từ tokens-app.css;
+ * file này chỉ thêm phần landing cần mà khu vực học tập không có. Tiền tố `lp-` để không đụng token app.
+ */
+
+@theme {
+  --color-lp-forest: #0b5c38; /* điểm sáng của nền hero */
+  --color-lp-deep: #01331f; /* nền chân trang */
+  --color-lp-lime: #7ed957; /* nhấn trên nền tối: "spaced repetition", nhãn mục */
+  --color-lp-lime-soft: #b6eba0; /* đầu cột xếp hạng ngoài top 3 */
+  --color-lp-sage: #9fc9ae; /* chữ viết tay "theo" */
+  --color-lp-mist: #b9d8c4; /* chữ phụ trên nền tối */
+
+  --radius-lp-card: 24px; /* thẻ lớn của landing */
+  --radius-lp-panel: 32px; /* khối gói giá, bảng xếp hạng */
+
+  --shadow-lp-float: 0 24px 60px rgb(1 40 26 / 0.45); /* thẻ nổi trên nền hero tối */
+
+  /* Be Vietnam Pro / Nunito gắn ở layout; Playwrite VN chỉ dùng cho chữ "theo" ở hero */
+  --font-script: var(--font-playwrite-vn), cursive;
+}
+
+/* Nền hero: quầng xanh sáng ở đáy. */
+@utility bg-lp-hero {
+  background: radial-gradient(120% 70% at 50% 100%, var(--color-lp-forest) 0%, var(--color-heading) 62%);
+}
+
+/* Kiểu chữ riêng của landing. */
+@utility type-lp-hero {
+  font-weight: 600;
+  font-size: clamp(2.25rem, 6.6vw, 5.5rem);
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+}
+@utility type-lp-h2 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(1.75rem, 3.4vw, 2.5rem);
+  line-height: 1.15;
+  color: var(--color-heading);
+}
+@utility type-lp-h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.3125rem;
+  line-height: 1.25;
+  color: var(--color-heading);
+}

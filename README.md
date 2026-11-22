@@ -58,6 +58,7 @@ Mọi môi trường dùng R2 qua S3 API, mỗi môi trường một bucket priv
 | `pnpm --filter @loopedu/api test:e2e` | E2E test của API |
 | `pnpm lint` / `pnpm typecheck` | Lint / kiểm tra kiểu toàn repo |
 | `pnpm infra:down` | Tắt các service Docker |
+| `pnpm db:check` | Thử kết nối `DATABASE_URL`: in `OK` hoặc `FAIL` kèm lý do (exit code 0 / 1) |
 | `pnpm --filter @loopedu/api db:generate` | Sinh file migration SQL từ thay đổi trong `src/db/schema.ts` (đọc lại SQL trước khi commit) |
 | `pnpm --filter @loopedu/api db:migrate` | Chạy migration còn thiếu, dùng `DATABASE_MIGRATION_URL` |
 | `pnpm --filter @loopedu/api db:studio` | Mở Drizzle Studio để xem dữ liệu |

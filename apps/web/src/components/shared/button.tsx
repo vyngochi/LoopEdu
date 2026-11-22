@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cx } from "./cx";
 import { Spinner } from "./icons";
 
-export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "inverse" | "inverse-outline";
 export type ButtonSize = "l" | "m" | "s";
 
 const VARIANT: Record<ButtonVariant, string> = {
@@ -16,6 +16,11 @@ const VARIANT: Record<ButtonVariant, string> = {
     "text-primary hover:bg-subtle active:bg-selected active:text-heading disabled:bg-transparent disabled:text-fg-muted",
   danger:
     "bg-error text-on-primary hover:bg-error-hover active:bg-error-pressed focus-visible:outline-error disabled:bg-disabled disabled:text-fg-muted",
+  // Trên nền tối (bg-inverse): hành động chính và phụ. Landing dùng, màn học thì không.
+  inverse:
+    "bg-record text-heading hover:bg-lp-lime active:bg-lp-lime focus-visible:outline-on-primary disabled:bg-disabled disabled:text-fg-muted",
+  "inverse-outline":
+    "border-[1.5px] border-selected/45 text-on-primary hover:bg-on-primary/10 active:bg-on-primary/15 focus-visible:outline-on-primary disabled:text-fg-muted",
 };
 
 const SIZE: Record<ButtonSize, string> = {

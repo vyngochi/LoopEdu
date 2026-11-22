@@ -1,0 +1,13 @@
+# Giữ context nhỏ và không đưa bí mật vào ảnh.
+.git
+**/node_modules
+**/dist
+**/.next
+**/coverage
+**/*.tsbuildinfo
+.env
+.env.*
+!.env.example
+**/*.log
+infra
+apps/api

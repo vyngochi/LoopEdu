@@ -49,6 +49,17 @@ Mọi môi trường dùng R2 qua S3 API, mỗi môi trường một bucket priv
 - API: http://localhost:4000/api/v1/health
 - Hộp thư email thử: http://localhost:8025
 
+### Chạy web bằng Docker (ảnh production)
+
+Build từ gốc repo, ảnh dùng Next standalone, chạy bằng user `node`:
+
+```bash
+docker build -f apps/web/Dockerfile -t loopedu-web .
+docker run --rm -p 3000:3000 loopedu-web
+# hoặc qua compose (profile web, không chạy mặc định): 
+docker compose -f infra/docker-compose.dev.yml --env-file .env --profile web up -d --build web
+```
+
 ## Lệnh thường dùng
 
 | Lệnh | Việc |

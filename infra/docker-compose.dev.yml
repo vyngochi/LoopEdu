@@ -29,5 +29,16 @@ services:
       - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
 
+  # Ảnh production của web (mặc định không chạy; dev dùng `pnpm dev`):
+  #   docker compose -f infra/docker-compose.dev.yml --env-file .env --profile web up -d --build web
+  web:
+    profiles: ["web"]
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    image: loopedu-web
+    ports:
+      - "127.0.0.1:3000:3000"
+
 volumes:
   pgdata:

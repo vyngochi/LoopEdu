@@ -9,8 +9,13 @@
 }
 
 @import "../styles/tokens-app.css";
+@import "../styles/tokens-landing.css";
 
 @layer base {
+  html {
+    scroll-behavior: smooth; /* neo trong trang landing; tắt ở prefers-reduced-motion bên dưới */
+  }
+
   body {
     background: var(--color-surface);
     color: var(--color-fg);

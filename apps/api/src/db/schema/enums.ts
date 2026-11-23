@@ -1,5 +1,5 @@
 import { pgEnum } from 'drizzle-orm/pg-core';
-import { EXAM_TRACKS, SECTION_CODES, SUPPORT_LEVELS } from '@loopedu/shared';
+import { EXAM_TRACKS, SECTION_CODES, SUPPORT_LEVELS, USER_ROLES } from '@loopedu/shared';
 
 export const examTrack = pgEnum('exam_track', EXAM_TRACKS);
 
@@ -8,7 +8,7 @@ export const authTokenPurpose = pgEnum('auth_token_purpose', [
   'refresh',
 ]);
 
-export const userRole = pgEnum('user_role', ['learner', 'editor', 'admin']);
+export const userRole = pgEnum('user_role', USER_ROLES);
 
 export const contentStatus = pgEnum('content_status', [
   'draft',

@@ -1,7 +1,12 @@
 import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { DrizzleModule } from '@nestjs/drizzle';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { ApiExceptionFilter } from './common/api-exception.filter.js';
+import { JwtAuthGuard } from './common/jwt-auth.guard.js';
+import { RolesGuard } from './common/roles.guard.js';
 import * as schema from './db/schema/index.js';
+import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
 @Module({
@@ -11,7 +16,14 @@ import { HealthModule } from './modules/health/health.module.js';
     DrizzleModule.forRootAsync({
       useFactory: () => ({ drizzle, connection: process.env.DATABASE_URL ?? '', schema }),
     }),
+    AuthModule,
     HealthModule,
+  ],
+  providers: [
+    { provide: APP_FILTER, useClass: ApiExceptionFilter },
+    // Order matters: authenticate first, then check roles.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

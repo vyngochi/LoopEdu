@@ -15,6 +15,20 @@
       "when": 1795265185337,
       "tag": "0001_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795394373084,
+      "tag": "0002_content_practice_voice",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795394374495,
+      "tag": "0003_invariants",
+      "breakpoints": true
     }
   ]
 }

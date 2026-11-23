@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { DrizzleModule } from '@nestjs/drizzle';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import * as schema from './db/schema.js';
-import { HealthController } from './health.controller.js';
+import * as schema from './db/schema/index.js';
+import { HealthModule } from './modules/health/health.module.js';
 
 @Module({
   imports: [
@@ -11,7 +11,7 @@ import { HealthController } from './health.controller.js';
     DrizzleModule.forRootAsync({
       useFactory: () => ({ drizzle, connection: process.env.DATABASE_URL ?? '', schema }),
     }),
+    HealthModule,
   ],
-  controllers: [HealthController],
 })
 export class AppModule {}

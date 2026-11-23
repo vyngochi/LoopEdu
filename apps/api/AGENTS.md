@@ -27,7 +27,7 @@ A route handler can return a web `Response`, a `ReadableStream` or an async gene
 
 Nest's packages are ESM only, and this project is ESM too: relative imports end in `.js`, `__dirname` doesn't exist (use `import.meta.dirname`), and tests run on Vitest, so mocks are `vi.fn()`, not `jest.fn()`.
 
-In this project (`@loopedu/api` in the LoopEdu pnpm monorepo), `src/main.ts` loads the monorepo-root `.env` if present, applies `configureApp` (global prefix `api/v1`, CORS from `CORS_ORIGINS`) and listens on `API_PORT` (4000 by default). `src/app.module.ts` is the root module. Shared Zod schemas and types come from `@loopedu/shared` (`packages/shared`); build it before the API (`pnpm --filter @loopedu/shared build`). The database layer is Drizzle through `@nestjs/drizzle`: tables live in `src/db/schema.ts`, inject with `@InjectDrizzle() private readonly db: Database` (`src/db/database.ts`), generate migrations with `pnpm db:generate` and review the SQL in `drizzle/`, apply them with `pnpm db:migrate`. Unit tests sit beside the code as `*.spec.ts` and the e2e test is in `test/`; Vitest runs them (`pnpm test`, `pnpm test:e2e`).
+In this project (`@loopedu/api` in the LoopEdu pnpm monorepo), `src/main.ts` loads the monorepo-root `.env` if present, applies `configureApp` (global prefix `api/v1`, CORS from `CORS_ORIGINS`) and listens on `API_PORT` (4000 by default). `src/app.module.ts` is the root module. Shared Zod schemas and types come from `@loopedu/shared` (`packages/shared`); build it before the API (`pnpm --filter @loopedu/shared build`). The database layer is Drizzle through `@nestjs/drizzle`: tables live in `src/db/schema/` (one file per domain, `index.ts` re-exports), inject with `@InjectDrizzle() private readonly db: Database` (`src/db/database.ts`), generate migrations with `pnpm db:generate` and review the SQL in `drizzle/`, apply them with `pnpm db:migrate`. Unit tests live inside the module they cover, in its own `test/` folder (`src/modules/health/test/health.controller.spec.ts`); the same goes for `src/db/test/`. Tests that span modules are e2e tests in the top-level `test/e2e/*.e2e-spec.ts`. Vitest runs them (`pnpm test`, `pnpm test:e2e`).
 
 The product spec (PRD v2.0, technical tab) is the source of truth for modules, data model and infrastructure: standard PostgreSQL + pgvector, S3-compatible storage, auth implemented in NestJS, configuration only through environment variables (see the root `.env.example`). Error tracking is planned with Sentry; do not add a vendor-specific observability service.
 
@@ -39,9 +39,9 @@ Derived from the PRD v2.0 technical tab (sections 7, 10–13; an export may sit 
 
 ### Structure
 
-- One Nest module per domain in `src/modules/<name>/`: `auth`, `catalog`, `practice`, `review`, `voice`, `billing-quota`, `privacy`, `content-admin`, `ai`, `learning-aids`, `jobs`, `analytics`. Adding another one needs a reason in the PR.
+- One Nest module per domain in `src/modules/<name>/` (files `<name>.module.ts`, `<name>.controller.ts`, `<name>.service.ts`, `<name>.repository.ts`): `health`, `auth`, `catalog`, `practice`, `review`, `voice`, `billing-quota`, `privacy`, `content-admin`, `ai`, `learning-aids`, `jobs`, `analytics`. Adding another one needs a reason in the PR.
 - Inside a module: controller (HTTP only: parse, call the service, return) → service (business rules, ownership checks) → repository (Drizzle queries). A module uses another module only through its exported service, never through its repository or by querying its tables.
-- Cross-cutting guards, pipes, filters and interceptors go in `src/common/`. All tables stay in `src/db/schema.ts`.
+- Cross-cutting guards, pipes, filters and interceptors go in `src/common/`. All tables stay in `src/db/schema/`: identity, catalog, learning (practice, review and voice assessments), usage, audit; a new table goes in the file of its domain, enums in `enums.ts`.
 - Queues are pg-boss inside the API process; schedules are `@nestjs/schedule`. No Redis, no BullMQ, no separate worker.
 
 ### API contract
@@ -63,7 +63,7 @@ Derived from the PRD v2.0 technical tab (sections 7, 10–13; an export may sit 
 
 ### Data
 
-- Schema changes: edit `src/db/schema.ts`, run `pnpm db:generate`, read the SQL, commit both. Never edit a migration that has been applied anywhere; add a new one. Migrations are expand/contract (add first, drop in a later deploy) so the previous image still runs.
+- Schema changes: edit the file in `src/db/schema/`, run `pnpm db:generate`, read the SQL, commit both. Never edit a migration that has been applied anywhere; add a new one. Migrations are expand/contract (add first, drop in a later deploy) so the previous image still runs.
 - The app connects with `DATABASE_URL`, a user without DDL rights; only `migrate.ts` uses `DATABASE_MIGRATION_URL`.
 - Timestamps are `timestamptz`. Learner-local calendar days (`anchor_local_date`, `due_on`) are `date` values (`YYYY-MM-DD`) computed in the learner's stored timezone.
 - The database enforces the invariants: `UNIQUE(user_id, question_set_version_id)` on `learning_items`, `UNIQUE(learning_item_id, milestone_days)` on `review_tasks`, `UNIQUE(user_id, idempotency_key)` on `speaking_assessments`, `UNIQUE(request_key)` on `credit_ledger`. Write with `ON CONFLICT DO NOTHING` inside a transaction.
@@ -98,5 +98,6 @@ Derived from the PRD v2.0 technical tab (sections 7, 10–13; an export may sit 
 
 ### Tests
 
+- A module's tests go in `<module>/test/`, one `*.spec.ts` per file under test, importing it as `../<file>.js`. Helpers shared by several modules go in `src/common/testing/`. `tsconfig.build.json` leaves every `test/` folder out of the build.
 - Every acceptance criterion a change touches gets an automated test. Tests never call real Azure, OpenAI, object storage or email; mock the adapters.
 - Test idempotency and quota rules by sending the same request several times and in parallel; test date rules across month end, year end and 29 February.

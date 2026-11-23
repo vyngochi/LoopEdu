@@ -1,0 +1,94 @@
+# Staging trên server tại nhà (tech doc mục 10). Chạy từ gốc repo:
+#   docker compose -f infra/docker-compose.staging.yml --env-file .env.staging up -d --build
+# Không service nào mở cổng ra ngoài; chỉ `cloudflared` nối ra Cloudflare Tunnel
+# (app-staging.<domain> -> http://web:3000, api-staging.<domain> -> http://api:4000, cấu hình ở dashboard Cloudflare).
+name: loopedu-staging
+
+x-app-env: &app-env
+  env_file: ../.env.staging
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Chạy một lần mỗi lần deploy; api chỉ khởi động khi migration xong.
+  migrate:
+    <<: *app-env
+    restart: "no"
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: loopedu-api
+    command: ["node", "apps/api/src/db/migrate.ts"]
+    environment: &db-env
+      # Trong mạng compose, DB là host `postgres` (ghi đè giá trị trong .env.staging).
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_MIGRATION_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app-env
+    image: loopedu-api
+    environment: *db-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    restart: unless-stopped
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    image: loopedu-web
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - api
+      - web
+
+  # pg_dump mỗi ngày vào volume `backups`, giữ 14 ngày.
+  # Chưa đẩy lên R2/B2: thêm bước upload (rclone) trước khi dùng cho dữ liệu cần giữ.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+    volumes:
+      - backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          pg_dump -Fc -f "/backups/loopedu-$$(date +%F).dump" && find /backups -name 'loopedu-*.dump' -mtime +14 -delete
+          sleep 86400
+        done
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  backups:

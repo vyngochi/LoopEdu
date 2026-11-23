@@ -16,8 +16,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json -w --preserveWatchOutput",
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json -w --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },

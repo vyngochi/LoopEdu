@@ -82,6 +82,7 @@ docker compose -f infra/docker-compose.dev.yml --env-file .env --profile web up 
 | `pnpm test:e2e` | Playwright (web + api): dùng server `pnpm dev` đang chạy, hoặc tự chạy bản đã `pnpm build`. Máy dev dùng Chrome cài sẵn |
 | OpenAPI | http://localhost:4000/api/docs (tắt khi `APP_ENV=production`) |
 | Staging | `docker compose -f infra/docker-compose.staging.yml --env-file .env.staging up -d --build` (cần `CLOUDFLARE_TUNNEL_TOKEN`) |
+| `pnpm staging:migrate` / `staging:seed` / `staging:tables` | Chạy trên server Dokploy (Linux, có Docker): migrate, nạp seed, liệt kê bảng, qua `docker exec` vào container `loopedu-be*` và `loopedu-database*`. Migrate đã tự chạy khi backend khởi động; dùng lại khi cần chạy tay. Đổi tên lọc trong `package.json` nếu service đổi tên |
 | `pnpm lint` / `pnpm typecheck` | Lint / kiểm tra kiểu toàn repo |
 | `pnpm infra:down` | Tắt các service Docker |
 | `pnpm db:check` | Thử kết nối `DATABASE_URL`: in `OK` hoặc `FAIL` kèm lý do (exit code 0 / 1) |

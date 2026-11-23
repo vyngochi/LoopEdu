@@ -21,6 +21,11 @@ export const users = pgTable(
     emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
     createdAt: createdAt(),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    // Optional second way to sign in. Set only after a magic-link sign-in (proves the email), scrypt hash.
+    passwordHash: text('password_hash'),
+    // Wrong-password counter; at 5 the account is locked until `lockedUntil` (magic link still works).
+    failedLoginCount: integer('failed_login_count').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
     // Account deletion is soft first; a scheduled job purges the data.
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },

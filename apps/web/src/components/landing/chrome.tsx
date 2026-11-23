@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Logo, buttonClass, cx } from "@/components/shared";
 import { ANCHOR, NAV } from "./content";
@@ -39,9 +40,9 @@ export function Header() {
         </nav>
         <div className="flex items-center gap-2">
           <span className="hidden sm:block">
-            <a href={`#${ANCHOR.start}`} className={buttonClass({ variant: "ghost" })}>
+            <Link href="/login" className={buttonClass({ variant: "ghost" })}>
               Đăng nhập
-            </a>
+            </Link>
           </span>
           <a href={`#${ANCHOR.start}`} className={buttonClass({ variant: "primary" })}>
             Học thử miễn phí

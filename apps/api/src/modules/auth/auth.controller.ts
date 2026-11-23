@@ -2,11 +2,13 @@ import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nes
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { CookieOptions, Request, Response } from 'express';
 import {
+  GoogleLoginRequestSchema,
   LoginRequestSchema,
   MagicLinkRequestSchema,
   SetPasswordRequestSchema,
   VerifyRequestSchema,
   type AuthSession,
+  type GoogleLoginRequest,
   type LoginRequest,
   type MagicLinkRequest,
   type MagicLinkResponse,
@@ -85,6 +87,18 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthSession> {
     return startSession(res, await this.auth.login(body.email, body.password, req.ip ?? null));
+  }
+
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Post('google')
+  @HttpCode(200)
+  async google(
+    @Body({ schema: GoogleLoginRequestSchema }) body: GoogleLoginRequest,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthSession> {
+    return startSession(res, await this.auth.loginWithGoogle(body.idToken, req.ip ?? null));
   }
 
   // The access token may have expired, so refresh and logout authenticate with the cookie.

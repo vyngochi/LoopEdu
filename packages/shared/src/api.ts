@@ -44,6 +44,10 @@ export const LoginRequestSchema = z.object({
 });
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
+// The ID token ("credential") Google Identity Services hands to the browser; the API verifies it.
+export const GoogleLoginRequestSchema = z.object({ idToken: z.string().min(1).max(4096) });
+export type GoogleLoginRequest = z.infer<typeof GoogleLoginRequestSchema>;
+
 // Length only (NIST): no composition rules. The 128 cap bounds the hashing cost.
 export const PASSWORD_MIN_LENGTH = 8;
 export const SetPasswordRequestSchema = z.object({

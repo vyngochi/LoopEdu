@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { HealthResponseSchema } from '@loopedu/shared';
-import { HealthController } from './health.controller.js';
+import { HealthController } from '../health.controller.js';
 
 describe('HealthController', () => {
   it('returns a response that matches the shared contract', async () => {

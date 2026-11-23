@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MagicLinkRequestSchema, SECTIONS_BY_TRACK, reviewDueDates } from './index';
+import { MagicLinkRequestSchema, SECTIONS_BY_TRACK, reviewDueDates } from '../src/index.js';
 
 describe('reviewDueDates (AC-REVIEW-01)', () => {
   it('creates D+3, D+7, D+21 within a month', () => {

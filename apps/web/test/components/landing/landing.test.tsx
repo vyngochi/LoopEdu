@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Landing } from ".";
-import { ANCHOR, FAQ, LEADERBOARD, NAV, PRICING_GROUPS, STEPS } from "./content";
+import { Landing } from "@/components/landing";
+import { ANCHOR, FAQ, LEADERBOARD, NAV, PRICING_GROUPS, STEPS } from "@/components/landing/content";
 
 const html = renderToStaticMarkup(<Landing />);
 const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));

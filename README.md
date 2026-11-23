@@ -8,13 +8,25 @@
 ```
 apps/
   web/        Next.js 16 – giao diện (cổng 3000)
+    src/      app/ (route), components/ (landing, shared), styles/
+    test/     test của web, cùng đường dẫn với src/
   api/        NestJS 12 – backend duy nhất, REST /api/v1 (cổng 4000)
-    src/db/   Drizzle: schema.ts (nguồn sự thật của DB), migrate.ts
+    src/
+      main.ts, app.module.ts, configure-app.ts
+      modules/<tên>/   mỗi domain một module: module, controller, service, repository
+        test/          test của module đó (*.spec.ts)
+      common/          guard, pipe, filter dùng chung (tạo khi cần)
+      db/              schema/ (một file mỗi domain), migrate.ts, seed.ts, check.ts, test/
     drizzle/  file migration SQL do drizzle-kit sinh, commit cùng code
+    test/e2e/ test e2e của api (đi qua nhiều module)
+    Dockerfile  ảnh production của API (cũng chạy migration)
 packages/
-  shared/     Zod schema, type, hằng số dùng chung cho web và api
+  shared/     Zod schema, type, hằng số dùng chung (src/<domain>.ts, test/)
+e2e/          Playwright: kiểm tra web + api đang chạy
 infra/
-  docker-compose.dev.yml   Postgres 16 + pgvector, Mailpit cho máy dev
+  docker-compose.dev.yml      Postgres 16 + pgvector, Mailpit cho máy dev
+  docker-compose.staging.yml  Staging ở server nhà: postgres, migrate, api, web, cloudflared, backup
+.github/workflows/ci.yml      CI: typecheck, lint, test, build, e2e, build ảnh Docker
 ```
 
 ## Yêu cầu
@@ -67,14 +79,21 @@ docker compose -f infra/docker-compose.dev.yml --env-file .env --profile web up 
 | `pnpm build` | Build theo thứ tự phụ thuộc (shared → api, web) |
 | `pnpm test` | Unit test mọi package |
 | `pnpm --filter @loopedu/api test:e2e` | E2E test của API |
+| `pnpm test:e2e` | Playwright (web + api): dùng server `pnpm dev` đang chạy, hoặc tự chạy bản đã `pnpm build`. Máy dev dùng Chrome cài sẵn |
+| OpenAPI | http://localhost:4000/api/docs (tắt khi `APP_ENV=production`) |
+| Staging | `docker compose -f infra/docker-compose.staging.yml --env-file .env.staging up -d --build` (cần `CLOUDFLARE_TUNNEL_TOKEN`) |
 | `pnpm lint` / `pnpm typecheck` | Lint / kiểm tra kiểu toàn repo |
 | `pnpm infra:down` | Tắt các service Docker |
 | `pnpm db:check` | Thử kết nối `DATABASE_URL`: in `OK` hoặc `FAIL` kèm lý do (exit code 0 / 1) |
-| `pnpm --filter @loopedu/api db:generate` | Sinh file migration SQL từ thay đổi trong `src/db/schema.ts` (đọc lại SQL trước khi commit) |
+| `pnpm --filter @loopedu/api db:generate` | Sinh file migration SQL từ thay đổi trong `src/db/schema/` (đọc lại SQL trước khi commit) |
 | `pnpm --filter @loopedu/api db:migrate` | Chạy migration còn thiếu, dùng `DATABASE_MIGRATION_URL` |
+| `pnpm --filter @loopedu/api db:seed` | Nạp dữ liệu dev (admin/editor/learner `@loopedu.local`, 1 topic); chỉ chạy khi `APP_ENV` là `local` hoặc `staging`, chạy lại không tạo trùng |
 | `pnpm --filter @loopedu/api db:studio` | Mở Drizzle Studio để xem dữ liệu |
 
 ## Quy ước
+
+- Test nằm trong thư mục `test/` riêng: api đặt ngay trong từng module (`src/modules/<tên>/test/`), e2e ở `apps/api/test/e2e/`; web và shared dùng `test/` ở gốc package.
+- Code chia theo domain: API theo `src/modules/<tên>`, shared theo `src/<domain>.ts`, schema DB theo `src/db/schema/<domain>.ts`.
 
 - Mọi khác biệt giữa local, staging (server tại nhà) và production nằm trong biến môi trường; xem `.env.example`. Không hard-code host hay khóa.
 - Chỉ dùng chuẩn mở: PostgreSQL + pgvector, S3 API, SMTP. Không thêm dịch vụ chỉ có ở một nhà cung cấp. R2 chỉ được gọi qua S3 API, nên đổi sang S3 hay storage khác chỉ cần sửa biến `S3_*`.

@@ -10,4 +10,3 @@
 !.env.example
 **/*.log
 infra
-apps/api

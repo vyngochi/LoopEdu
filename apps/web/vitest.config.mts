@@ -12,5 +12,5 @@ const stubImages = {
 export default defineConfig({
   plugins: [stubImages],
   resolve: { tsconfigPaths: true },
-  test: { include: ["src/**/*.test.tsx"] },
+  test: { include: ["test/**/*.test.tsx"] },
 });

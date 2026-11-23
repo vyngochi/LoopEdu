@@ -7,6 +7,7 @@ import type { AuthUser } from '../../common/current-user.js';
 import { ACCESS_TOKEN_TTL_SECONDS, AccessTokenService } from './access-token.service.js';
 import { AuthMailer } from './auth.mailer.js';
 import { AuthRepository } from './auth.repository.js';
+import { GoogleIdTokenVerifier } from './google-id-token.verifier.js';
 
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -35,6 +36,7 @@ export class AuthService {
     private readonly repo: AuthRepository,
     private readonly accessTokens: AccessTokenService,
     private readonly mailer: AuthMailer,
+    private readonly google: GoogleIdTokenVerifier,
   ) {}
 
   /**
@@ -74,6 +76,20 @@ export class AuthService {
     }
     await this.repo.markLogin(userId);
     return this.issueSession(userId, ip);
+  }
+
+  /**
+   * Google sign-in and sign-up in one: a verified Google email proves the address like a magic link does,
+   * so it signs in the account with that email, creating it on first use.
+   * shortcut: accounts are matched by email, not by Google `sub`; add a sub column if Google emails can change hands.
+   */
+  async loginWithGoogle(idToken: string, ip: string | null): Promise<Session> {
+    const identity = await this.google.verify(idToken);
+    if (!identity?.emailVerified) throw new ApiException('UNAUTHORIZED', 'Google sign-in failed');
+    const user = await this.repo.upsertLearner(identity.email);
+    if (user.deletedAt) throw new ApiException('UNAUTHORIZED', 'Google sign-in failed');
+    await this.repo.markLogin(user.id);
+    return this.issueSession(user.id, ip);
   }
 
   /** Email + password sign-in. Every failure looks the same: wrong password, no such email, no password set, locked. */

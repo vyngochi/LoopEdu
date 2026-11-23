@@ -7,6 +7,7 @@ import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/configure-app.js';
 import { createTestDb, setTestJwtKeys } from '../../src/common/testing/test-db.js';
 import { AuthMailer } from '../../src/modules/auth/auth.mailer.js';
+import { GoogleIdTokenVerifier } from '../../src/modules/auth/google-id-token.verifier.js';
 
 const ORIGIN = 'http://localhost:3000';
 let app: INestApplication;
@@ -23,6 +24,11 @@ beforeAll(async () => {
     .useValue(testDb.db)
     .overrideProvider(AuthMailer)
     .useValue({ sendMagicLink: async (to: string, link: string) => void mails.push({ to, link }) })
+    // Fake Google: the "ID token" is the email; "forged" is rejected.
+    .overrideProvider(GoogleIdTokenVerifier)
+    .useValue({
+      verify: async (t: string) => (t === 'forged' ? null : { email: t, emailVerified: true }),
+    })
     .compile();
   app = moduleRef.createNestApplication();
   configureApp(app);
@@ -115,6 +121,18 @@ describe('auth (e2e)', () => {
     const bad = await http().post('/api/v1/auth/login').send({ email: 'pw@example.com', password: 'wrong wrong' }).expect(401);
     expect(ApiErrorSchema.parse(bad.body).code).toBe('UNAUTHORIZED');
   }, 30_000);
+
+  it('signs in with Google: session cookie on success, UNAUTHORIZED for a bad token, 400 for a bad body', async () => {
+    const ok = await http().post('/api/v1/auth/google').send({ idToken: 'g.e2e@example.com' }).expect(200);
+    const { accessToken } = AuthSessionSchema.parse(ok.body);
+    expect(refreshCookie(ok)).toMatch(/HttpOnly/i);
+    const me = await http().get('/api/v1/me').set('Authorization', `Bearer ${accessToken}`).expect(200);
+    expect(MeResponseSchema.parse(me.body)).toMatchObject({ email: 'g.e2e@example.com', roles: ['learner'] });
+
+    const bad = await http().post('/api/v1/auth/google').send({ idToken: 'forged' }).expect(401);
+    expect(ApiErrorSchema.parse(bad.body).code).toBe('UNAUTHORIZED');
+    await http().post('/api/v1/auth/google').send({}).expect(400);
+  });
 
   it('throttles login attempts per IP', async () => {
     const body = { email: 'throttle@example.com', password: 'whatever it is' };

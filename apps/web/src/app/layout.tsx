@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro, Nunito, Playwrite_VN } from "next/font/google";
+import { ToastProvider } from "@/components/shared";
 import "./globals.css";
 
 // Both families ship a Vietnamese subset, so diacritics never fall back to another font.
@@ -32,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="vi"
       className={`${beVietnamPro.variable} ${nunito.variable} ${playwriteVn.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col"><ToastProvider>{children}</ToastProvider></body>
     </html>
   );
 }

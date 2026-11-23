@@ -9,3 +9,4 @@ export { Tag, Chip, type TagTone } from "./tag";
 export { Banner, AiFeedbackBanner, Card, cardClass, Skeleton, EmptyState } from "./feedback";
 export { Dialog } from "./dialog";
 export { Logo, Loopi, type LogoName, type LoopiPose } from "./brand";
+export { ToastProvider, useToast } from "./toast";

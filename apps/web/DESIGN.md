@@ -33,13 +33,14 @@ Import từ `@/components/shared`. **Tìm ở đây trước khi viết mới.**
 | Trống | `EmptyState loopi title description action` | `loopi` mặc định `happy` |
 | Logo | `Logo name width` | Xem "Logo & Loopi" |
 | Mascot | `Loopi pose width` | Xem "Logo & Loopi" |
+| Thông báo ngắn (lỗi gửi form, đã lưu) | `useToast()` → `toast(message, "info" · "success" · "error")` | `ToastProvider` đã nằm ở layout gốc. Tự ẩn sau 5 giây, lỗi đọc to (`role="alert"`). Lỗi theo từng ô vẫn dùng `error` của `TextField`; lỗi cả trang dùng `Banner` |
 | Hộp thoại, bottom sheet | `Dialog variant` dialog · alert · sheet | Client component. Nút an toàn đặt `autoFocus` |
-| Icon | `CheckIcon`, `AlertIcon`, `InfoIcon`, `CloseIcon`, `MicIcon`, `MicOffIcon`, `StopIcon`, `Spinner` | Nét 2 px, lưới 24 px |
+| Icon | `CheckIcon`, `AlertIcon`, `InfoIcon`, `ArrowLeftIcon`, `CloseIcon`, `MicIcon`, `MicOffIcon`, `StopIcon`, `Spinner` | Nét 2 px, lưới 24 px |
 | Ghép class | `cx(...)` | Không có tailwind-merge: class truyền vào không ghi đè class cùng thuộc tính |
 
 **Thêm component mới vào `shared`** khi nó xuất hiện ở ≥ 2 màn hoặc có trong guideline UI 02–04/07. Thành phần chỉ thuộc một tính năng đặt trong thư mục của tính năng đó và ghép từ component dùng chung. Thêm vào `shared` thì export ở `index.ts` và thêm một dòng vào bảng trên.
 
-Chưa làm (dựng khi màn đầu tiên cần, theo spec bên dưới): Toast, Tooltip, Tabs, phân trang, hẹn giờ, tiến trình theo bước, thanh điều hướng.
+Chưa làm (dựng khi màn đầu tiên cần, theo spec bên dưới): Tooltip, Tabs, phân trang, hẹn giờ, tiến trình theo bước, thanh điều hướng.
 
 ## Logo & Loopi
 
@@ -125,7 +126,7 @@ Ghép từ component dùng chung; chỉ ghi điều không tự suy ra được.
 **Trạng thái (UI 04)**
 - Quota: "Còn 7/10 lượt · Làm mới ngày 1/12"; hết lượt vẫn "Tự nói không ghi âm".
 - Streak: mất chuỗi không dùng đỏ, không trách.
-- Toast: góc dưới, `bg-inverse text-on-primary rounded-md shadow-2`, tự ẩn sau 5 giây, `role="status"`, có thể kèm "Xem" / "Hoàn tác".
+- Toast: góc dưới, `bg-surface border-line rounded-md shadow-2`, trượt lên 250 ms khi hiện, icon + màu theo loại, tự ẩn sau 5 giây, `role="status"`, có thể kèm "Xem" / "Hoàn tác".
 - Tooltip: hiện khi hover và focus bàn phím; điện thoại mở bằng chạm.
 - Hẹn giờ: 10 giây cuối chuyển `warning` kèm chữ "sắp hết giờ".
 

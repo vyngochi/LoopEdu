@@ -6,6 +6,7 @@ import { AccessTokenService } from '../access-token.service.js';
 import type { AuthMailer } from '../auth.mailer.js';
 import { AuthRepository } from '../auth.repository.js';
 import { AuthService } from '../auth.service.js';
+import type { GoogleIdTokenVerifier } from '../google-id-token.verifier.js';
 
 let db: Database;
 let close: () => Promise<void>;
@@ -23,8 +24,20 @@ beforeEach(() => {
   const mailer = {
     sendMagicLink: vi.fn(async (to: string, link: string) => void sent.push({ to, link })),
   } as unknown as AuthMailer;
-  service = new AuthService(new AuthRepository(db), new AccessTokenService(), mailer);
+  service = new AuthService(new AuthRepository(db), new AccessTokenService(), mailer, googleVerifier);
 });
+
+// Fake Google: the "ID token" is just the identity as JSON, anything else is invalid.
+const googleVerifier = {
+  verify: async (t: string) => {
+    try {
+      return JSON.parse(t) as { email: string; emailVerified: boolean };
+    } catch {
+      return null;
+    }
+  },
+} as unknown as GoogleIdTokenVerifier;
+const googleToken = (email: string, emailVerified = true) => JSON.stringify({ email, emailVerified });
 
 const tokenOf = (link: string) => new URL(link).searchParams.get('token')!;
 const unauthorized = { response: { code: 'UNAUTHORIZED' } };
@@ -58,7 +71,7 @@ describe('requestMagicLink', () => {
 
   it('does not fail when the mail cannot be sent', async () => {
     const failing = { sendMagicLink: vi.fn().mockRejectedValue(new Error('smtp down')) } as unknown as AuthMailer;
-    const svc = new AuthService(new AuthRepository(db), new AccessTokenService(), failing);
+    const svc = new AuthService(new AuthRepository(db), new AccessTokenService(), failing, googleVerifier);
     await expect(svc.requestMagicLink('smtp@example.com', '10.0.0.3')).resolves.toBeUndefined();
   });
 
@@ -111,6 +124,34 @@ describe('verify', () => {
 
     await db.insert(userRoles).values({ userId: user.id, role: 'editor' });
     expect((await service.authenticate(session.accessToken)).roles.sort()).toEqual(['editor', 'learner']);
+  });
+});
+
+describe('loginWithGoogle', () => {
+  it('signs up a new account on first use and signs the same one in next time', async () => {
+    const first = await service.loginWithGoogle(googleToken('g.new@example.com'), null);
+    const { id } = await service.authenticate(first.accessToken);
+    expect((await service.me(id)).roles).toEqual(['learner']);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    expect(user.emailVerifiedAt).not.toBeNull();
+
+    const second = await service.loginWithGoogle(googleToken('g.new@example.com'), null);
+    expect((await service.authenticate(second.accessToken)).id).toBe(id);
+  });
+
+  it('signs in the existing account that has the same email', async () => {
+    const { id } = await service.authenticate((await service.verify(await linkFor('g.same@example.com'), null)).accessToken);
+    const session = await service.loginWithGoogle(googleToken('g.same@example.com'), null);
+    expect((await service.authenticate(session.accessToken)).id).toBe(id);
+  });
+
+  it('rejects an invalid token, an unverified email and a soft-deleted account', async () => {
+    await expect(service.loginWithGoogle('garbage', null)).rejects.toMatchObject(unauthorized);
+    await expect(service.loginWithGoogle(googleToken('g.unver@example.com', false), null)).rejects.toMatchObject(unauthorized);
+
+    await service.loginWithGoogle(googleToken('g.gone@example.com'), null);
+    await db.update(users).set({ deletedAt: new Date() }).where(eq(users.email, 'g.gone@example.com'));
+    await expect(service.loginWithGoogle(googleToken('g.gone@example.com'), null)).rejects.toMatchObject(unauthorized);
   });
 });
 

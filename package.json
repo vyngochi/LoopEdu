@@ -13,6 +13,9 @@
     "typecheck": "pnpm -r typecheck",
     "test:e2e": "pnpm --filter @loopedu/e2e test:e2e",
     "db:check": "pnpm --filter @loopedu/api db:check",
+    "staging:migrate": "docker exec $(docker ps -q -f name=loopedu-be) sh -c 'DATABASE_MIGRATION_URL=\"${DATABASE_MIGRATION_URL:-$DATABASE_URL}\" node apps/api/src/db/migrate.ts'",
+    "staging:seed": "docker exec $(docker ps -q -f name=loopedu-be) sh -c 'DATABASE_MIGRATION_URL=\"${DATABASE_MIGRATION_URL:-$DATABASE_URL}\" node apps/api/dist/db/seed.js'",
+    "staging:tables": "docker exec $(docker ps -q -f name=loopedu-database) sh -c 'psql -P pager=off -U $POSTGRES_USER -d $POSTGRES_DB -c \\\\dt'",
     "infra:up": "docker compose -f infra/docker-compose.dev.yml --env-file .env up -d",
     "infra:down": "docker compose -f infra/docker-compose.dev.yml --env-file .env down"
   }

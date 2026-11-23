@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build context là gốc repo (monorepo), không phải apps/api:
 #   docker build -f apps/api/Dockerfile -t loopedu-api .
-# Cùng một ảnh chạy API (mặc định) và migration: `node apps/api/src/db/migrate.ts`.
+# Mặc định ảnh tự chạy migration rồi mới khởi động API (xem CMD cuối file); compose staging vẫn có service migrate riêng, chạy lại thì vô hại.
 # Ảnh không giữ trạng thái trên đĩa; người dùng không phải root.
 
 FROM node:24-alpine AS base
@@ -43,4 +43,6 @@ ENV API_PORT=4000
 EXPOSE 4000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=15s --retries=5 \
   CMD wget -qO /dev/null http://127.0.0.1:4000/api/v1/health || exit 1
-CMD ["node", "apps/api/dist/main.js"]
+# Migrate first, then start the API (exec so SIGTERM reaches node). A failed migration stops the container.
+# DATABASE_MIGRATION_URL falls back to DATABASE_URL for hosts that set only one; production should set both (app user without DDL).
+CMD ["sh", "-c", "DATABASE_MIGRATION_URL=${DATABASE_MIGRATION_URL:-$DATABASE_URL} node apps/api/src/db/migrate.ts && exec node apps/api/dist/main.js"]

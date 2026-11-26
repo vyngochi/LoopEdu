@@ -26,13 +26,8 @@ const Seconds = z.int().min(0).max(600);
 export const PlayerStepSchema = z.object({ prepSeconds: Seconds, speakSeconds: Seconds });
 export type PlayerStep = z.infer<typeof PlayerStepSchema>;
 
-export const PracticeSessionSchema = z.object({
-  id: z.uuid(),
-  status: z.enum(['in_progress', 'completed', 'abandoned']),
-  supportLevel: SupportLevelSchema,
-  startedAt: z.string(),
-  completedAt: z.string().nullable(),
-  selfRating: SelfRatingSchema.nullable(),
+// Everything the player needs for one version of a set; shared by practice sessions and review tasks.
+export const PlayerViewSchema = z.object({
   questionSet: z.object({
     id: z.uuid(),
     topic: z.object({ id: z.uuid(), slug: z.string(), name: z.string() }),
@@ -46,5 +41,15 @@ export const PracticeSessionSchema = z.object({
   // Only at the "sample" level, with placeholders already filled in. Otherwise null.
   sampleAnswers: z.array(z.string()).nullable(),
   timing: z.object({ readSeconds: Seconds, steps: z.array(PlayerStepSchema).min(1) }),
+});
+export type PlayerView = z.infer<typeof PlayerViewSchema>;
+
+export const PracticeSessionSchema = PlayerViewSchema.extend({
+  id: z.uuid(),
+  status: z.enum(['in_progress', 'completed', 'abandoned']),
+  supportLevel: SupportLevelSchema,
+  startedAt: z.string(),
+  completedAt: z.string().nullable(),
+  selfRating: SelfRatingSchema.nullable(),
 });
 export type PracticeSession = z.infer<typeof PracticeSessionSchema>;

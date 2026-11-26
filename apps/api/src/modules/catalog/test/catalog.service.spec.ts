@@ -10,6 +10,8 @@ import {
   users,
 } from '../../../db/schema/index.js';
 import type { Database } from '../../../db/database.js';
+import { ContentAdminRepository } from '../../content-admin/content-admin.repository.js';
+import { ContentAdminService } from '../../content-admin/content-admin.service.js';
 import { CatalogRepository } from '../catalog.repository.js';
 import { CatalogService } from '../catalog.service.js';
 
@@ -22,7 +24,7 @@ let bob: string;
 
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
-  service = new CatalogService(new CatalogRepository(db));
+  service = new CatalogService(new CatalogRepository(db), new ContentAdminService(new ContentAdminRepository(db)));
   [{ id: alice }] = await db.insert(users).values({ email: 'alice@example.com' }).returning();
   [{ id: bob }] = await db.insert(users).values({ email: 'bob@example.com' }).returning();
   [{ id: blueprintId }] = await db

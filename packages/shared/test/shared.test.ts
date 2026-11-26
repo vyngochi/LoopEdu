@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderPlaceholders, CreateBlueprintRequestSchema, DEFAULT_BLUEPRINT_RULES, MagicLinkRequestSchema, SECTIONS_BY_TRACK, UpdateProfileRequestSchema, reviewDueDates } from '../src/index.js';
+import { daysBetween, localDateIn, renderPlaceholders, CreateBlueprintRequestSchema, DEFAULT_BLUEPRINT_RULES, MagicLinkRequestSchema, SECTIONS_BY_TRACK, UpdateProfileRequestSchema, reviewDueDates } from '../src/index.js';
 
 describe('UpdateProfileRequestSchema', () => {
   it('accepts IANA timezones and rejects made-up ones', () => {
@@ -77,5 +77,22 @@ describe('renderPlaceholders (AC-PRACTICE-02)', () => {
     expect(renderPlaceholders('I am {{name}}.')).toBe('I am a learner.');
     expect(renderPlaceholders('A {{ mystery }} fan')).toBe('A fan');
     expect(renderPlaceholders('{{hobby}} and {{hobby}}')).toBe('reading and reading');
+  });
+});
+
+describe('localDateIn and daysBetween', () => {
+  it('reads the calendar day in the learner timezone', () => {
+    const at = new Date('2026-12-31T20:00:00Z');
+    expect(localDateIn('Asia/Ho_Chi_Minh', at)).toBe('2027-01-01');
+    expect(localDateIn('America/Los_Angeles', at)).toBe('2026-12-31');
+    expect(localDateIn('UTC', at)).toBe('2026-12-31');
+  });
+
+  it('counts whole days across month, year and leap day', () => {
+    expect(daysBetween('2027-02-01', '2027-02-04')).toBe(3);
+    expect(daysBetween('2026-12-30', '2027-01-02')).toBe(3);
+    expect(daysBetween('2028-02-28', '2028-03-01')).toBe(2);
+    expect(daysBetween('2027-06-04', '2027-06-04')).toBe(0);
+    expect(daysBetween('2027-06-04', '2027-06-01')).toBe(-3);
   });
 });

@@ -1,9 +1,9 @@
 "use client";
 
-import type { PracticeSession, QuestionSetDetail, SelfRating, SupportLevel } from "@loopedu/shared";
+import type { PlayerView, SelfRating, SupportLevel } from "@loopedu/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftIcon,
   Banner,
@@ -16,8 +16,8 @@ import {
   buttonClass,
 } from "@/components/shared";
 import { ApiRequestError } from "@/lib/api";
-import { completePracticeSession, getQuestionSet, startPracticeSession } from "@/lib/practice";
 import { PhaseTimer } from "./phase-timer";
+import { practiceSource, reviewSource, type PlayerHeader } from "./player-source";
 import { LEVEL_LABEL, SECTION_LABEL, firstPhase, nextPhase, phaseSeconds, type Phase } from "./player-state";
 import { QuestionBody } from "./question-body";
 
@@ -40,9 +40,9 @@ const SUPPORT_HINT: Record<SupportLevel, string> = {
   none: "Chỉ có đề và đồng hồ, như lúc thi. Hợp khi đã quen đề.",
 };
 
-const header = (right?: string) => (
+const header = (backHref: string, right?: string) => (
   <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line px-2 sm:px-4">
-    <Link href="/practice" aria-label="Thoát, về danh sách đề" className={buttonClass({ variant: "ghost", size: "s" })}>
+    <Link href={backHref} aria-label="Thoát, về danh sách" className={buttonClass({ variant: "ghost", size: "s" })}>
       <ArrowLeftIcon className="size-5" />
       Thoát
     </Link>
@@ -59,15 +59,21 @@ const shell = (top: React.ReactNode, body: React.ReactNode, bottom?: React.React
   </div>
 );
 
-/** Màn luyện của một đề: chọn mức hỗ trợ → chuẩn bị/nói theo đồng hồ của đề. Chưa ghi âm (V03) và chưa hoàn thành phiên (B08). */
-export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
+type Session = PlayerView & { id: string };
+
+/**
+ * Màn luyện: chọn mức hỗ trợ → chuẩn bị/nói theo đồng hồ của đề → tự đánh giá. `mode` chọn nguồn:
+ * luyện một đề mới (`id` là đề) hoặc ôn một lượt đến hạn (`id` là lượt ôn). Chưa ghi âm (V03).
+ */
+export function PlayerScreen({ mode, id }: { mode: "practice" | "review"; id: string }) {
   const router = useRouter();
-  const [detail, setDetail] = useState<QuestionSetDetail | null>(null);
+  const source = useMemo(() => (mode === "review" ? reviewSource(id) : practiceSource(id)), [mode, id]);
+  const [detail, setDetail] = useState<PlayerHeader | null>(null);
   const [failure, setFailure] = useState<"missing" | "network" | null>(null);
-  const [level, setLevel] = useState<SupportLevel>("sample");
+  const [level, setLevel] = useState<SupportLevel>(source.defaultLevel);
   const [starting, setStarting] = useState(false);
-  const [startFailed, setStartFailed] = useState(false);
-  const [session, setSession] = useState<PracticeSession | null>(null);
+  const [startFailed, setStartFailed] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "done" });
   const [rating, setRating] = useState<SelfRating | null>(null);
   const [completing, setCompleting] = useState(false);
@@ -77,12 +83,14 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
   const fail = useCallback(
     (err: unknown) => {
       if (err instanceof ApiRequestError && err.code === "UNAUTHORIZED") return router.replace("/login");
-      setFailure(err instanceof ApiRequestError && err.code === "NOT_FOUND" ? "missing" : "network");
+      // Ôn chưa đến hạn (CONFLICT) cũng là "không có lượt này" với người học.
+      const missing = err instanceof ApiRequestError && (err.code === "NOT_FOUND" || err.code === "CONFLICT");
+      setFailure(missing ? "missing" : "network");
     },
     [router],
   );
 
-  const load = useCallback(() => getQuestionSet(questionSetId).then(setDetail, fail), [questionSetId, fail]);
+  const load = useCallback(() => source.loadHeader().then(setDetail, fail), [source, fail]);
   const retry = () => {
     setFailure(null);
     void load();
@@ -94,14 +102,18 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
 
   async function start() {
     setStarting(true);
-    setStartFailed(false);
+    setStartFailed(null);
     try {
-      const s = await startPracticeSession(questionSetId, level);
+      const s = await source.start(level);
       setSession(s);
       setPhase(firstPhase(s.timing));
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === "UNAUTHORIZED") return router.replace("/login");
-      setStartFailed(true);
+      setStartFailed(
+        err instanceof ApiRequestError && err.code === "CONFLICT"
+          ? "Lượt này chưa đến hạn hoặc đã xong. Xem lại danh sách nhé."
+          : "Thử lại sau vài giây. Chưa có gì bị tính.",
+      );
     } finally {
       setStarting(false);
     }
@@ -112,7 +124,7 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
     setCompleting(true);
     setCompleteFailed(false);
     try {
-      await completePracticeSession(session.id, rating);
+      await source.complete(session.id, rating, level);
       setFinished(true);
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === "UNAUTHORIZED") return router.replace("/login");
@@ -135,23 +147,25 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
     setPhase((p) => (session ? nextPhase(session.timing, p) : p));
   }, [session]);
 
+  const back = source.backHref;
+
   if (failure === "missing")
     return shell(
-      header(),
+      header(back),
       <EmptyState
         loopi="curious"
-        title="Chưa tìm thấy đề này"
-        description="Đề có thể đã bị gỡ. Chọn một đề khác nhé."
+        title={source.missing.title}
+        description={source.missing.description}
         action={
-          <Link href="/practice" className={buttonClass({ variant: "primary" })}>
-            Chọn đề
+          <Link href={back} className={buttonClass({ variant: "primary" })}>
+            {source.backLabel}
           </Link>
         }
       />,
     );
   if (failure === "network")
     return shell(
-      header(),
+      header(back),
       <Banner tone="error" title="Chưa mở được đề" action={<Button variant="outline" size="s" onClick={retry}>Thử lại</Button>}>
         Kiểm tra mạng rồi thử lại. Chưa có lượt nào bị trừ.
       </Banner>,
@@ -159,7 +173,7 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
 
   if (!detail)
     return shell(
-      header(),
+      header(back),
       <div className="flex flex-col gap-4" aria-busy="true" aria-label="Đang tải đề">
         <Skeleton className="h-6 w-2/3" />
         <Skeleton className="h-12 w-full" />
@@ -170,14 +184,15 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
   // --- Chọn mức hỗ trợ ---
   if (!session)
     return shell(
-      header(),
+      header(back),
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
+            {detail.badge && <Tag tone="success">{detail.badge}</Tag>}
             <Tag tone={detail.examType === "ielts" ? "brand" : "neutral"}>{SECTION_LABEL[detail.sectionCode]}</Tag>
             <Tag tone="neutral">{LEVEL_LABEL[detail.difficulty]}</Tag>
           </div>
-          <h1 className="type-h2 text-heading">{detail.topic.name}</h1>
+          <h1 className="type-h2 text-heading">{detail.topic}</h1>
         </div>
 
         <div className="flex flex-col gap-3">
@@ -185,14 +200,14 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
           <p className="type-body text-fg-secondary">{SUPPORT_HINT[level]}</p>
         </div>
 
-        {startFailed && (
+        {startFailed !== null && (
           <Banner tone="error" title="Chưa bắt đầu được">
-            Thử lại sau vài giây. Chưa có gì bị tính.
+            {startFailed}
           </Banner>
         )}
       </div>,
       <Button variant="primary" size="l" fullWidth loading={starting} onClick={() => void start()}>
-        {starting ? "Đang mở đề…" : "Bắt đầu luyện"}
+        {starting ? "Đang mở đề…" : source.startLabel}
       </Button>,
     );
 
@@ -203,23 +218,25 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
 
   if (phase.kind === "done" && finished)
     return shell(
-      header("Xong"),
-      <Banner tone="success" title="Đã ghi nhận phiên luyện">
+      header(back, "Xong"),
+      <Banner tone="success" title={source.doneTitle}>
         Bạn tự đánh giá: {RATING_OPTIONS.find((o) => o.value === rating)?.label}.
       </Banner>,
       <div className="flex gap-3">
-        <Button variant="outline" size="l" fullWidth onClick={again}>
-          Luyện lại
-        </Button>
-        <Link href="/practice" className={buttonClass({ variant: "primary", size: "l", fullWidth: true })}>
-          Chọn đề khác
+        {source.canRetry && (
+          <Button variant="outline" size="l" fullWidth onClick={again}>
+            Luyện lại
+          </Button>
+        )}
+        <Link href={back} className={buttonClass({ variant: "primary", size: "l", fullWidth: true })}>
+          {source.backLabel}
         </Link>
       </div>,
     );
 
   if (phase.kind === "done")
     return shell(
-      header(progress),
+      header(back, progress),
       <div className="flex flex-col gap-5">
         <fieldset className="flex flex-col gap-3">
           <legend className="type-h2 mb-1 text-heading">Bạn thấy lần này thế nào?</legend>
@@ -230,14 +247,16 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
         </fieldset>
         {completeFailed && (
           <Banner tone="error" title="Chưa lưu được kết quả">
-            Thử lại sau vài giây. Phiên luyện của bạn vẫn còn.
+            Thử lại sau vài giây. Phiên của bạn vẫn còn.
           </Banner>
         )}
       </div>,
       <div className="flex gap-3">
-        <Button variant="outline" size="l" fullWidth onClick={again}>
-          Luyện lại
-        </Button>
+        {source.canRetry && (
+          <Button variant="outline" size="l" fullWidth onClick={again}>
+            Luyện lại
+          </Button>
+        )}
         <Button variant="primary" size="l" fullWidth disabled={!rating} loading={completing} onClick={() => void complete()}>
           {completing ? "Đang lưu…" : "Hoàn thành"}
         </Button>
@@ -246,7 +265,7 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
 
   const phaseKey = `${phase.kind}-${phase.step}`;
   return shell(
-    header(progress),
+    header(back, progress),
     <QuestionBody session={session} phase={phase} />,
     <div className="flex items-center gap-4">
       <PhaseTimer key={phaseKey} phase={phase} seconds={phaseSeconds(session.timing, phase)} onDone={advance} />

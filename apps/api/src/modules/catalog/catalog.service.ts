@@ -2,13 +2,18 @@ import { Injectable } from '@nestjs/common';
 import {
   QuestionContentSchema,
   type LearnerQuestionContent,
+  type PlayerView,
+  type SupportLevel,
+  type QuestionContent,
   type ListQuestionSetsQuery,
   type QuestionSetDetail,
   type QuestionSetSummary,
   type Topic,
 } from '@loopedu/shared';
 import { ApiException } from '../../common/api-exception.js';
+import { ContentAdminService } from '../content-admin/content-admin.service.js';
 import { CatalogRepository } from './catalog.repository.js';
+import { planTiming, renderSamples } from './player-view.js';
 
 type Row = Awaited<ReturnType<CatalogRepository['list']>>[number];
 
@@ -25,8 +30,7 @@ const toSummary = (r: Row): QuestionSetSummary => ({
 });
 
 /** Allow-list projection: sample answers, patterns and structure in content_json are never copied. */
-function toLearnerContent(json: unknown): LearnerQuestionContent {
-  const c = QuestionContentSchema.parse(json);
+function toLearnerContent(c: QuestionContent): LearnerQuestionContent {
   return {
     prompt: c.prompt,
     cuePoints: c.cue_points,
@@ -45,7 +49,10 @@ function toLearnerContent(json: unknown): LearnerQuestionContent {
 
 @Injectable()
 export class CatalogService {
-  constructor(private readonly repo: CatalogRepository) {}
+  constructor(
+    private readonly repo: CatalogRepository,
+    private readonly blueprints: ContentAdminService,
+  ) {}
 
   /** Topics that have at least one set this learner can open, with the sections available. */
   async listTopics(userId: string, exam?: ListQuestionSetsQuery['exam']): Promise<Topic[]> {
@@ -62,10 +69,52 @@ export class CatalogService {
     return (await this.repo.list(userId, { exam: q.exam, section: q.section, topicSlug: q.topic })).map(toSummary);
   }
 
+  /** The version a learner would study now: the current version of a set they may see, else NOT_FOUND. */
+  async resolveStartableVersion(userId: string, setId: string): Promise<string> {
+    const row = await this.repo.get(userId, setId);
+    if (!row) throw new ApiException('NOT_FOUND', 'Question set not found');
+    return row.versionId;
+  }
+
+  /** A pinned version for a session or review. No visibility check: the caller already proved ownership. */
+  async getVersion(versionId: string) {
+    const row = await this.repo.getVersion(versionId);
+    if (!row) throw new ApiException('NOT_FOUND', 'Question set version not found');
+    const raw = QuestionContentSchema.parse(row.contentJson);
+    return {
+      set: {
+        id: row.id,
+        topic: { id: row.topicId, slug: row.topicSlug, name: row.topicName },
+        examType: row.examType,
+        sectionCode: row.sectionCode,
+        difficulty: row.difficulty,
+        versionNo: row.versionNo,
+      },
+      content: toLearnerContent(raw),
+      raw,
+      blueprintId: row.blueprintId,
+    };
+  }
+
+  /**
+   * What the player gets for one pinned version: only the help the support level allows (AC-DIAGRAM-02),
+   * the sample with placeholders filled in (AC-PRACTICE-02) and timers from the set or its blueprint.
+   */
+  async playerView(versionId: string, level: SupportLevel): Promise<PlayerView> {
+    const v = await this.getVersion(versionId);
+    const { ideaHints, usefulExpressions, ...content } = v.content;
+    return {
+      questionSet: v.set,
+      content: level === 'none' ? content : { ...content, ideaHints, usefulExpressions },
+      sampleAnswers: level === 'sample' ? renderSamples(v.raw) : null,
+      timing: planTiming(v.set.sectionCode, v.raw, await this.blueprints.getBlueprintRules(v.blueprintId)),
+    };
+  }
+
   /** A draft or another learner's pending set looks the same as a missing one, so ids cannot be probed. */
   async getQuestionSet(userId: string, id: string): Promise<QuestionSetDetail> {
     const row = await this.repo.get(userId, id);
     if (!row) throw new ApiException('NOT_FOUND', 'Question set not found');
-    return { ...toSummary(row), content: toLearnerContent(row.contentJson) };
+    return { ...toSummary(row), content: toLearnerContent(QuestionContentSchema.parse(row.contentJson)) };
   }
 }

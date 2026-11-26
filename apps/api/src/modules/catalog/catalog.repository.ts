@@ -71,6 +71,17 @@ export class CatalogRepository {
       .orderBy(asc(topics.name), asc(questionSets.sectionCode), asc(questionSets.difficulty), asc(questionSets.id));
   }
 
+  /** A version by id, whatever the set's status now: sessions and reviews stay pinned to what was studied. */
+  async getVersion(versionId: string) {
+    const [row] = await this.db
+      .select({ ...columns, blueprintId: questionSetVersions.blueprintId, contentJson: questionSetVersions.contentJson })
+      .from(questionSetVersions)
+      .innerJoin(questionSets, eq(questionSets.id, questionSetVersions.questionSetId))
+      .innerJoin(topics, eq(topics.id, questionSets.topicId))
+      .where(eq(questionSetVersions.id, versionId));
+    return row ?? null;
+  }
+
   async get(userId: string, id: string) {
     const [row] = await this.base().where(and(eq(questionSets.id, id), this.visible(userId)));
     return row ?? null;

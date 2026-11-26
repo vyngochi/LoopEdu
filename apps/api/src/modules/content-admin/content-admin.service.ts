@@ -6,6 +6,7 @@ import {
   type AdminQuestionSetDetail,
   type AdminTopic,
   type Blueprint,
+  type BlueprintRules,
   type CreateBlueprintRequest,
   type CreateQuestionSetRequest,
   type CreateTopicRequest,
@@ -61,6 +62,13 @@ export class ContentAdminService {
 
   async listBlueprints(examType?: ExamTrack): Promise<Blueprint[]> {
     return (await this.repo.list(examType)).map(toBlueprint);
+  }
+
+  /** Rules of one blueprint version, for modules that must follow the structure a set was written under. */
+  async getBlueprintRules(id: string): Promise<BlueprintRules> {
+    const row = await this.repo.getBlueprint(id);
+    if (!row) throw new ApiException('NOT_FOUND', 'Blueprint not found');
+    return BlueprintRulesSchema.parse(row.rulesJson);
   }
 
   async createBlueprint(actorId: string, req: CreateBlueprintRequest): Promise<Blueprint> {

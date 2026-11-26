@@ -1,48 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import {
-  renderPlaceholders,
-  type BlueprintRules,
   type CompletePracticeSessionRequest,
   type CreatePracticeSessionRequest,
-  type PlayerStep,
   type PracticeSession,
-  type QuestionContent,
-  type SectionCode,
 } from '@loopedu/shared';
 import { ApiException } from '../../common/api-exception.js';
+import { AuthService } from '../auth/auth.service.js';
 import { CatalogService } from '../catalog/catalog.service.js';
-import { ContentAdminService } from '../content-admin/content-admin.service.js';
+import { ReviewService } from '../review/review.service.js';
 import { PracticeRepository, type PracticeSessionRow } from './practice.repository.js';
-
-/**
- * Timers per question: what the set declares, else the blueprint it was written under. Resolved here so
- * the player never guesses (Part 1 questions carry no timers of their own).
- */
-export function planTiming(section: SectionCode, c: QuestionContent, rules: BlueprintRules): PracticeSession['timing'] {
-  const rule = rules.sections[section];
-  if (!rule) throw new Error(`Blueprint has no rules for ${section}`);
-  const step = (prep?: number, speak?: number): PlayerStep => ({
-    prepSeconds: prep ?? c.prep_seconds ?? rule.prepSeconds,
-    speakSeconds: speak ?? c.speaking_seconds ?? rule.speakSeconds.max,
-  });
-  const steps = c.questions?.length
-    ? c.questions.map((q) => (typeof q === 'string' ? step() : step(q.prep_seconds, q.response_seconds)))
-    : [step()];
-  return { readSeconds: c.read_seconds ?? rule.readSeconds, steps };
-}
-
-/** Sample answers with placeholders filled in; empty when the set has none (e.g. TOEIC read aloud). */
-function renderSamples(c: QuestionContent): string[] {
-  const samples = c.sample_answers ?? (c.sample_answer ? [c.sample_answer] : []);
-  return samples.map((s) => renderPlaceholders(s, c.personalization_defaults));
-}
 
 @Injectable()
 export class PracticeService {
   constructor(
     private readonly repo: PracticeRepository,
     private readonly catalog: CatalogService,
-    private readonly blueprints: ContentAdminService,
+    private readonly reviews: ReviewService,
+    private readonly auth: AuthService,
   ) {}
 
   /** Starts a session pinned to the set's current version (AC-PRACTICE-01: only sets this learner may see). */
@@ -58,11 +32,22 @@ export class PracticeService {
   }
 
   /**
-   * Finishes a session with the learner's self-rating (AC-PRACTICE-03). Repeating the same request returns
-   * the stored result; a different rating, or a session that is not in progress, is a CONFLICT.
+   * Finishes a session with the learner's self-rating (AC-PRACTICE-03) and, for the first completion of that
+   * version, schedules the 3-7-21 reviews in the same transaction. Repeating the same request returns the stored
+   * result; a different rating, or a session that is not in progress, is a CONFLICT.
    */
   async complete(userId: string, id: string, req: CompletePracticeSessionRequest): Promise<PracticeSession> {
-    const done = await this.repo.complete(userId, id, req.selfRating);
+    // shortcut: a learner who never set a timezone (skipped onboarding) is scheduled in UTC; onboarding requires one.
+    const timezone = (await this.auth.me(userId)).profile.timezone ?? 'UTC';
+    const done = await this.repo.complete(userId, id, req.selfRating, (tx, s) =>
+      this.reviews.scheduleFirstCompletion(tx, {
+        userId,
+        questionSetVersionId: s.questionSetVersionId,
+        sessionId: s.id,
+        timezone,
+        completedAt: s.completedAt ?? new Date(),
+      }),
+    );
     if (done) return this.view(done);
     const existing = await this.repo.findOwned(userId, id);
     if (!existing) throw new ApiException('NOT_FOUND', 'Practice session not found');
@@ -70,22 +55,15 @@ export class PracticeService {
     throw new ApiException('CONFLICT', 'This session is already finished');
   }
 
-  /** What the player gets: only the help the chosen support level allows (AC-DIAGRAM-02). */
   private async view(row: PracticeSessionRow): Promise<PracticeSession> {
-    const v = await this.catalog.getVersion(row.questionSetVersionId);
-    const level = row.supportLevel;
-    const { ideaHints, usefulExpressions, ...content } = v.content;
     return {
       id: row.id,
       status: row.status,
-      supportLevel: level,
+      supportLevel: row.supportLevel,
       startedAt: row.startedAt.toISOString(),
       completedAt: row.completedAt?.toISOString() ?? null,
       selfRating: row.selfRating,
-      questionSet: v.set,
-      content: level === 'none' ? content : { ...content, ideaHints, usefulExpressions },
-      sampleAnswers: level === 'sample' ? renderSamples(v.raw) : null,
-      timing: planTiming(v.set.sectionCode, v.raw, await this.blueprints.getBlueprintRules(v.blueprintId)),
+      ...(await this.catalog.playerView(row.questionSetVersionId, row.supportLevel)),
     };
   }
 }

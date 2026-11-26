@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import {
   QuestionContentSchema,
   type LearnerQuestionContent,
+  type PlayerView,
+  type SupportLevel,
   type QuestionContent,
   type ListQuestionSetsQuery,
   type QuestionSetDetail,
@@ -9,7 +11,9 @@ import {
   type Topic,
 } from '@loopedu/shared';
 import { ApiException } from '../../common/api-exception.js';
+import { ContentAdminService } from '../content-admin/content-admin.service.js';
 import { CatalogRepository } from './catalog.repository.js';
+import { planTiming, renderSamples } from './player-view.js';
 
 type Row = Awaited<ReturnType<CatalogRepository['list']>>[number];
 
@@ -45,7 +49,10 @@ function toLearnerContent(c: QuestionContent): LearnerQuestionContent {
 
 @Injectable()
 export class CatalogService {
-  constructor(private readonly repo: CatalogRepository) {}
+  constructor(
+    private readonly repo: CatalogRepository,
+    private readonly blueprints: ContentAdminService,
+  ) {}
 
   /** Topics that have at least one set this learner can open, with the sections available. */
   async listTopics(userId: string, exam?: ListQuestionSetsQuery['exam']): Promise<Topic[]> {
@@ -86,6 +93,21 @@ export class CatalogService {
       content: toLearnerContent(raw),
       raw,
       blueprintId: row.blueprintId,
+    };
+  }
+
+  /**
+   * What the player gets for one pinned version: only the help the support level allows (AC-DIAGRAM-02),
+   * the sample with placeholders filled in (AC-PRACTICE-02) and timers from the set or its blueprint.
+   */
+  async playerView(versionId: string, level: SupportLevel): Promise<PlayerView> {
+    const v = await this.getVersion(versionId);
+    const { ideaHints, usefulExpressions, ...content } = v.content;
+    return {
+      questionSet: v.set,
+      content: level === 'none' ? content : { ...content, ideaHints, usefulExpressions },
+      sampleAnswers: level === 'sample' ? renderSamples(v.raw) : null,
+      timing: planTiming(v.set.sectionCode, v.raw, await this.blueprints.getBlueprintRules(v.blueprintId)),
     };
   }
 

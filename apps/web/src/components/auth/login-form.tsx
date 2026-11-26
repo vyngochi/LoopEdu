@@ -15,6 +15,7 @@ import { ApiRequestError } from "@/lib/api";
 import {
   loginWithGoogle,
   loginWithPassword,
+  pathAfterSignIn,
   requestMagicLink,
 } from "@/lib/auth";
 import { GoogleButton } from "./google-button";
@@ -104,13 +105,13 @@ export function LoginForm({
     e.preventDefault();
     void run("password", async () => {
       await loginWithPassword(email, password);
-      router.replace("/");
+      router.replace(await pathAfterSignIn());
     });
   };
   const onGoogle = (idToken: string) =>
     void run("google", async () => {
       await loginWithGoogle(idToken);
-      router.replace("/");
+      router.replace(await pathAfterSignIn());
     });
 
   const emailField = (autoComplete: string) => (

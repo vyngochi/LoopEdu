@@ -6,6 +6,11 @@ export const EXAM_TRACKS = ['ielts', 'toeic'] as const;
 export const ExamTrackSchema = z.enum(EXAM_TRACKS);
 export type ExamTrack = z.infer<typeof ExamTrackSchema>;
 
+// Self-reported level at onboarding; same values as question set difficulty.
+export const LEVELS = ['beginner', 'intermediate', 'advanced'] as const;
+export const LevelSchema = z.enum(LEVELS);
+export type Level = z.infer<typeof LevelSchema>;
+
 export const SECTION_CODES = [
   'ielts_p1',
   'ielts_p2',

@@ -1,4 +1,10 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
+import {
+  useId,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from "react";
 import { cx } from "./cx";
 import { AlertIcon } from "./icons";
 
@@ -71,6 +77,33 @@ export function TextField({
         className={cx(CONTROL, "h-13", className)}
         {...props}
       />
+    </Field>
+  );
+}
+
+/** Ô chọn từ danh sách dài (select gốc), vd. múi giờ. Danh sách ≤ 4 mục thì dùng `SegmentedControl` hoặc `Radio`. */
+export function SelectField({
+  label,
+  hint,
+  error,
+  id,
+  className,
+  children,
+  ...props
+}: FieldProps & SelectHTMLAttributes<HTMLSelectElement>) {
+  const autoId = useId();
+  const fieldId = id ?? autoId;
+  return (
+    <Field id={fieldId} label={label} hint={hint} error={error}>
+      <select
+        id={fieldId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error || hint ? `${fieldId}-msg` : undefined}
+        className={cx(CONTROL, "h-13", className)}
+        {...props}
+      >
+        {children}
+      </select>
     </Field>
   );
 }

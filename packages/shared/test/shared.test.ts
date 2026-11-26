@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { MagicLinkRequestSchema, SECTIONS_BY_TRACK, reviewDueDates } from '../src/index.js';
+import { MagicLinkRequestSchema, SECTIONS_BY_TRACK, UpdateProfileRequestSchema, reviewDueDates } from '../src/index.js';
+
+describe('UpdateProfileRequestSchema', () => {
+  it('accepts IANA timezones and rejects made-up ones', () => {
+    expect(UpdateProfileRequestSchema.safeParse({ timezone: 'Asia/Ho_Chi_Minh' }).success).toBe(true);
+    expect(UpdateProfileRequestSchema.safeParse({ timezone: 'Mars/Olympus' }).success).toBe(false);
+  });
+
+  it('rejects unknown levels and non-integer years', () => {
+    expect(UpdateProfileRequestSchema.safeParse({ level: 'expert' }).success).toBe(false);
+    expect(UpdateProfileRequestSchema.safeParse({ birthYear: 2000.5 }).success).toBe(false);
+  });
+});
 
 describe('reviewDueDates (AC-REVIEW-01)', () => {
   it('creates D+3, D+7, D+21 within a month', () => {

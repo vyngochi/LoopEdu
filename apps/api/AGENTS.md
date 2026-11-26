@@ -48,7 +48,7 @@ Derived from the PRD v2.0 technical tab (sections 7, 10–13; an export may sit 
 
 - Routes live under the global prefix `api/v1` set in `configure-app.ts`; never repeat it in `@Controller()`. Endpoints follow the table in spec 11.5; call out any new endpoint in the PR.
 - Request and response shapes are Zod schemas in `@loopedu/shared`, exported with their inferred types. Validate every body, param and query with them; no class-validator DTOs. Type response bodies with the shared type, as `HealthController` does.
-- Error bodies are `ApiError` (`{ code, message }`) with a code from `ERROR_CODES`, mapped to HTTP as: `VALIDATION_FAILED` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `CONSENT_REQUIRED` 403, `NOT_FOUND` 404, `CONFLICT` 409, `QUOTA_EXCEEDED` 429, `AI_UNAVAILABLE` 503. One global exception filter in `src/common/` does the mapping; services throw, controllers never build error bodies.
+- Error bodies are `ApiError` (`{ code, message }`) with a code from `ERROR_CODES`, mapped to HTTP as: `VALIDATION_FAILED` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `CONSENT_REQUIRED` 403, `AGE_NOT_ELIGIBLE` 403, `NOT_FOUND` 404, `CONFLICT` 409, `QUOTA_EXCEEDED` 429, `AI_UNAVAILABLE` 503. One global exception filter in `src/common/` does the mapping; services throw, controllers never build error bodies.
 - A resource owned by another user answers `NOT_FOUND`, so IDs cannot be probed. `POST /auth/magic-link` answers identically whether or not the email exists.
 - Retryable writes (complete practice session, complete review task, create assessment, publish) take an idempotency key and return the same result when repeated. A unique constraint provides the guarantee, not a read-then-write check. **(AC-PRACTICE-03, AC-VOICE-03)**
 

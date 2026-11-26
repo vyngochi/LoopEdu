@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
-import { and, count, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
-import type { UserRole } from '@loopedu/shared';
+import { and, count, eq, gt, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import type { UpdateProfileRequest, UserRole } from '@loopedu/shared';
 import type { Database } from '../../db/database.js';
 import { authTokens, profiles, userRoles, users } from '../../db/schema/index.js';
 
@@ -149,6 +149,26 @@ export class AuthRepository {
     if (!user) return null;
     const rows = await this.db.select({ role: userRoles.role }).from(userRoles).where(eq(userRoles.userId, userId));
     return { id: user.id, roles: rows.map((r) => r.role) as UserRole[] };
+  }
+
+  /**
+   * Updates only the given fields. Birth year is write-once: the condition sits in the WHERE clause, so a
+   * different year never overwrites a stored one. Returns false when nothing matched.
+   */
+  async updateProfile(userId: string, patch: UpdateProfileRequest): Promise<boolean> {
+    const rows = await this.db
+      .update(profiles)
+      .set(patch)
+      .where(
+        and(
+          eq(profiles.userId, userId),
+          patch.birthYear === undefined
+            ? undefined
+            : or(isNull(profiles.birthYear), eq(profiles.birthYear, patch.birthYear)),
+        ),
+      )
+      .returning({ userId: profiles.userId });
+    return rows.length > 0;
   }
 
   async findMe(userId: string) {

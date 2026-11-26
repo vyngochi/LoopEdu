@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { Spinner } from "@/components/shared";
-import { verifyMagicLink } from "@/lib/auth";
+import { pathAfterSignIn, verifyMagicLink } from "@/lib/auth";
 
 /** Đích của link trong email: đổi token lấy phiên, rồi vào app. Token dùng một lần nên chỉ gọi đúng một lần. */
 export function VerifyLink() {
@@ -16,7 +16,7 @@ export function VerifyLink() {
     started.current = true;
     if (!token) return router.replace("/login?expired=1");
     verifyMagicLink(token).then(
-      () => router.replace("/"),
+      async () => router.replace(await pathAfterSignIn()),
       () => router.replace("/login?expired=1"),
     );
   }, [token, router]);

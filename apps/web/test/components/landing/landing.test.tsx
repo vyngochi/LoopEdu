@@ -1,9 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Landing } from "@/components/landing";
+import { ToastProvider } from "@/components/shared";
 import { ANCHOR, FAQ, LEADERBOARD, NAV, PRICING_GROUPS, STEPS } from "@/components/landing/content";
 
-const html = renderToStaticMarkup(<Landing />);
+// ToastProvider nằm ở layout gốc; menu tài khoản trên header cần nó.
+const html = renderToStaticMarkup(<ToastProvider><Landing /></ToastProvider>);
 const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
 const hrefs = [...html.matchAll(/\shref="#([^"]*)"/g)].map((m) => m[1]);
 

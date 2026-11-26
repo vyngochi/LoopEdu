@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Put, Req, Res, UseGuards } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { CookieOptions, Request, Response } from 'express';
 import {
@@ -6,6 +6,7 @@ import {
   LoginRequestSchema,
   MagicLinkRequestSchema,
   SetPasswordRequestSchema,
+  UpdateProfileRequestSchema,
   VerifyRequestSchema,
   type AuthSession,
   type GoogleLoginRequest,
@@ -14,6 +15,7 @@ import {
   type MagicLinkResponse,
   type MeResponse,
   type SetPasswordRequest,
+  type UpdateProfileRequest,
   type VerifyRequest,
 } from '@loopedu/shared';
 import { ApiException } from '../../common/api-exception.js';
@@ -128,6 +130,14 @@ export class MeController {
   @Get()
   me(@CurrentUser() user: AuthUser): Promise<MeResponse> {
     return this.auth.me(user.id);
+  }
+
+  @Put('profile')
+  updateProfile(
+    @CurrentUser() user: AuthUser,
+    @Body({ schema: UpdateProfileRequestSchema }) body: UpdateProfileRequest,
+  ): Promise<MeResponse> {
+    return this.auth.updateProfile(user.id, body);
   }
 
   @UseGuards(ThrottlerGuard)

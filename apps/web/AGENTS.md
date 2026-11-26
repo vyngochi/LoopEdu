@@ -19,6 +19,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Chữ dùng `type-*`. Khoảng cách bội số 4. Bo góc chỉ `rounded-xs|sm|md|lg|full`. Bóng chỉ `shadow-1|2|3`.
 - Điện thoại trước: class cho 360 px, rồi `sm:` (≥ 600), `lg:` (≥ 1024).
 - Vùng chạm ≥ 44 px; nút icon dùng `IconButton` (bắt buộc `label`); trạng thái không chỉ dựa vào màu; không `outline-none` trừ ô nhập có vòng focus riêng.
+- Hạn chế cuộn: mỗi màn vừa một khung nhìn và nút chính luôn thấy được. Form dài thì chia bước, không tự cuộn trang (DESIGN.md · Nguyên tắc 7).
 - Mỗi màn một `Button variant="primary"`, tối đa một `RecordButton`. Không hiển thị hay suy ra band IELTS / điểm TOEIC.
 - Logo và Loopi chỉ dùng qua `Logo`, `Loopi` (file ở `src/assets/brand/`), đúng mục "Logo & Loopi" trong DESIGN.md. Không dùng Loopi ở lỗi, consent, xóa dữ liệu.
 - Landing (chưa đăng nhập) dùng token riêng ở `src/styles/tokens-landing.css`; không sửa `tokens-app.css` cho landing.

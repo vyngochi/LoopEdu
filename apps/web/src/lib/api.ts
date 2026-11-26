@@ -12,15 +12,29 @@ export class ApiRequestError extends Error {
   }
 }
 
+type Schema<T> = { parse(data: unknown): T };
+
 /** POST JSON tới API, kèm cookie (refresh token nằm trong httpOnly cookie). `schema` kiểm tra phản hồi. */
-export async function apiPost<T>(path: string, body: unknown, schema: { parse(data: unknown): T }): Promise<T> {
+export const apiPost = <T>(path: string, body: unknown, schema: Schema<T>) => apiRequest("POST", path, body, schema);
+
+/** Gọi API bất kỳ; có `token` thì gửi kèm `Authorization: Bearer`. */
+export async function apiRequest<T>(
+  method: "GET" | "POST" | "PUT",
+  path: string,
+  body: unknown,
+  schema: Schema<T>,
+  token?: string | null,
+): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
-      method: "POST",
+      method,
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      headers: {
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
     throw new ApiRequestError("NETWORK", "Không kết nối được máy chủ");

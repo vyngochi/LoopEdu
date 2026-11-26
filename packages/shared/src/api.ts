@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ExamTrackSchema } from './exam.js';
+import { ExamTrackSchema, LevelSchema } from './exam.js';
 
 // API contract: error bodies and request/response shapes shared by web and api.
 
@@ -12,6 +12,7 @@ export const ERROR_CODES = [
   'CONSENT_REQUIRED',
   'QUOTA_EXCEEDED',
   'AI_UNAVAILABLE',
+  'AGE_NOT_ELIGIBLE',
 ] as const;
 export const ErrorCodeSchema = z.enum(ERROR_CODES);
 export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
@@ -84,6 +85,33 @@ export const MeResponseSchema = z.object({
   }),
 });
 export type MeResponse = z.infer<typeof MeResponseSchema>;
+
+// Age is counted by year (current year − birth year); the API rejects anyone under this.
+export const MIN_AGE = 14;
+export const DAILY_GOAL_OPTIONS = [5, 10, 15, 20] as const;
+
+const isTimeZone = (tz: string) => {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// PUT /me/profile: onboarding and Settings. Every field is optional; only the ones sent are changed.
+export const UpdateProfileRequestSchema = z.object({
+  birthYear: z.int().min(1900).max(2100).optional(),
+  timezone: z.string().max(64).refine(isTimeZone, 'Unknown IANA timezone').optional(),
+  examTrack: ExamTrackSchema.optional(),
+  level: LevelSchema.optional(),
+  dailyGoalMinutes: z.int().min(1).max(240).optional(),
+});
+export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequestSchema>;
+
+/** Onboarding is done once the required profile fields are set (PRD F02). */
+export const isOnboarded = (p: MeResponse['profile']) =>
+  p.birthYear !== null && p.timezone !== null && p.examTrack !== null;
 
 export const HealthResponseSchema = z.object({
   status: z.literal('ok'),

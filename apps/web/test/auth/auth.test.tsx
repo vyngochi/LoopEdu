@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/shared";
 import { LoginForm, errorMessage, type LoginScreen } from "@/components/auth/login-form";
 import { ApiRequestError } from "@/lib/api";
-import { getAccessToken, loginWithPassword } from "@/lib/auth";
+import { getAccessToken, loginWithPassword, logout } from "@/lib/auth";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
@@ -47,6 +47,15 @@ describe("auth client", () => {
     await loginWithPassword("a@b.vn", "secret");
     expect(getAccessToken()).toBe("tok");
     expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/auth/login"), expect.objectContaining({ credentials: "include" }));
+  });
+
+  it("đăng xuất gọi /auth/logout (204 không body) và quên access token", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ accessToken: "tok", expiresIn: 900 }), { status: 200 })));
+    await loginWithPassword("a@b.vn", "secret");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+    await logout();
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/auth/logout"), expect.objectContaining({ method: "POST" }));
+    expect(getAccessToken()).toBeNull();
   });
 
   it("đổi lỗi API thành ApiRequestError có code", async () => {

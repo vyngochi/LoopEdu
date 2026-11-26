@@ -210,6 +210,60 @@ describe('me', () => {
   });
 });
 
+describe('updateProfile (onboarding)', () => {
+  const thisYear = new Date().getUTCFullYear();
+  const signUp = async (email: string) =>
+    // Own IP: the tests share one in-test DB, and 10.0.0.1 is close to the 20/hour per-IP cap.
+    (await service.authenticate((await service.verify(await linkFor(email, '10.0.0.4'), null)).accessToken)).id;
+
+  it('saves the onboarding fields and returns the updated profile', async () => {
+    const id = await signUp('onboard@example.com');
+    const me = await service.updateProfile(id, {
+      birthYear: thisYear - 20,
+      timezone: 'Asia/Ho_Chi_Minh',
+      examTrack: 'ielts',
+      level: 'intermediate',
+      dailyGoalMinutes: 10,
+    });
+    expect(me.profile).toMatchObject({
+      birthYear: thisYear - 20,
+      timezone: 'Asia/Ho_Chi_Minh',
+      examTrack: 'ielts',
+      level: 'intermediate',
+      dailyGoalMinutes: 10,
+    });
+  });
+
+  it('accepts 14 by year, refuses 13 with AGE_NOT_ELIGIBLE and saves nothing from that request', async () => {
+    const young = await signUp('young@example.com');
+    await expect(service.updateProfile(young, { birthYear: thisYear - 13, timezone: 'UTC' })).rejects.toMatchObject({
+      response: { code: 'AGE_NOT_ELIGIBLE' },
+    });
+    expect((await service.me(young)).profile).toMatchObject({ birthYear: null, timezone: null });
+
+    const fourteen = await signUp('fourteen@example.com');
+    expect((await service.updateProfile(fourteen, { birthYear: thisYear - 14 })).profile.birthYear).toBe(thisYear - 14);
+  });
+
+  it('keeps the birth year once set: the same year is fine, another one is a CONFLICT', async () => {
+    const id = await signUp('once@example.com');
+    await service.updateProfile(id, { birthYear: thisYear - 15 });
+    await expect(service.updateProfile(id, { birthYear: thisYear - 15, level: 'beginner' })).resolves.toBeDefined();
+    await expect(service.updateProfile(id, { birthYear: thisYear - 30, level: 'advanced' })).rejects.toMatchObject({
+      response: { code: 'CONFLICT' },
+    });
+    expect((await service.me(id)).profile).toMatchObject({ birthYear: thisYear - 15, level: 'beginner' });
+  });
+
+  it('changes only the fields that are sent', async () => {
+    const id = await signUp('partial@example.com');
+    await service.updateProfile(id, { timezone: 'Asia/Bangkok', dailyGoalMinutes: 15 });
+    const me = await service.updateProfile(id, { dailyGoalMinutes: 5 });
+    expect(me.profile).toMatchObject({ timezone: 'Asia/Bangkok', dailyGoalMinutes: 5 });
+    expect((await service.updateProfile(id, {})).profile.dailyGoalMinutes).toBe(5);
+  });
+});
+
 describe('password sign-in', () => {
   const PASSWORD = 'correct horse battery';
 

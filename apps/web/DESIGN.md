@@ -10,7 +10,12 @@ Nguồn: **LoopEdu UI Components v1.0** (`../Documents/LoopEdu_Brand_Guidelines.
 4. **Một hành động chính**: mỗi màn một nút `primary`, tối đa một `RecordButton`.
 5. WCAG 2.1 AA. Giữ viền focus toàn cục (đã có trong `globals.css`).
 6. Không hiển thị, không suy ra band IELTS hay điểm TOEIC. Điểm Azure luôn ghi "thang Azure 0–100", không tô màu đạt/trượt.
-7. Loopi chỉ ở trạng thái trống và thẻ Bài hôm nay. Lỗi, consent, xóa dữ liệu dùng icon (xem "Logo & Loopi").
+7. **Hạn chế cuộn**: ở trạng thái mặc định, mỗi màn vừa một khung nhìn (điện thoại 360 × 740, máy tính 1366 × 768) và nút chính luôn thấy được mà không cần cuộn.
+   - Form có hơn 4 nhóm trường thì chia bước, mỗi bước 1–3 nhóm, kèm tiến độ "Bước 2/4" và nút "Quay lại". Ví dụ onboarding: năm sinh → lộ trình và mức nội dung → mục tiêu và múi giờ → thử mic.
+   - Nội dung dài tự nhiên (bài mẫu, transcript, lịch sử, danh sách) được cuộn, nhưng header và thanh hành động phải dính trên hoặc dưới (`sticky`) để không phải cuộn mới bấm được.
+   - Không tự cuộn hay nhảy trang (`scrollIntoView`, `autoFocus` ở ô dưới màn, nội dung chèn thêm làm đẩy layout). Ngoại lệ duy nhất là khi submit lỗi thì đưa ô lỗi đầu tiên vào tầm nhìn.
+   - Thứ hiện thêm sau thao tác (banner, gợi ý, kết quả) phải giữ chỗ sẵn hoặc mở trong `Dialog` / sheet, không đẩy nút chính xuống dưới màn.
+8. Loopi chỉ ở trạng thái trống và thẻ Bài hôm nay. Lỗi, consent, xóa dữ liệu dùng icon (xem "Logo & Loopi").
 
 ## Component dùng chung
 
@@ -23,6 +28,7 @@ Import từ `@/components/shared`. **Tìm ở đây trước khi viết mới.**
 | Nút chỉ có icon | `IconButton label="…"` filled · tonal · outline · ghost, `pressed` cho bật/tắt | `label` bắt buộc |
 | Nút ghi âm | `RecordButton state` ready · recording · scoring · done · unavailable, `level` 0–1 | Chữ trạng thái đặt dưới nút |
 | Ô nhập | `TextField`, `TextArea` với `label`, `hint`, `error` | Có `value` + `maxLength` thì tự hiện bộ đếm |
+| Chọn từ danh sách dài | `SelectField` với `label`, `hint`, `error`, con là `<option>` | vd. múi giờ; ≤ 4 mục thì dùng `SegmentedControl` |
 | Checkbox, radio, công tắc | `Checkbox`, `Radio`, `Switch` với `label`, `description` | Nhóm radio đặt trong `<fieldset>` + `<legend>` |
 | Chọn 1 trong 2–4 mục | `SegmentedControl` | Radio gốc, dùng được trong `<form>` |
 | Nhãn tĩnh | `Tag tone` brand · neutral · success · warning · celebrate | IELTS `brand`, TOEIC `neutral` |
@@ -96,7 +102,7 @@ File gốc: `Brand/loopedu-brand-assets/v1` (ngoài repo). Bản dùng cho web n
 | Khoảng cách | bội số 4: trong thẻ `p-4`–`p-5`, giữa thẻ `gap-3`–`gap-4`, giữa khối `gap-6`–`gap-8`, lề điện thoại `px-4` |
 | Bo góc | `rounded-xs` (tô từ) · `sm` (ô nhập, thẻ nhỏ) · `md` (thẻ, banner, toast, menu) · `lg` (panel, hộp thoại, sheet) · `full` (nút, chip) |
 | Bóng | `shadow-1` (thẻ) · `shadow-2` (menu, toast, nút ghi âm) · `shadow-3` (hộp thoại, sheet) |
-| Chuyển động | `duration-150` hover/nhấn · `duration-250` thẻ mở, chip · `duration-350` sheet, hộp thoại; `ease-out` |
+| Chuyển động | `duration-150` hover/nhấn · `duration-250` thẻ mở, chip · `duration-350` sheet, hộp thoại; `ease-out`. Form nhiều bước: `animate-step-next` / `animate-step-back` (trượt ngang 24 px + hiện dần, 250 ms) trên khối nội dung có `key={step}` |
 | Bố cục | `max-w-content` (1200), `max-w-reading` (720, cột đọc màn luyện nói) |
 
 Cần token mới: thêm vào `tokens-app.css` kèm tên guideline (`nhóm.vai-trò.trạng-thái`) trong comment, rồi thêm vào bảng trên.

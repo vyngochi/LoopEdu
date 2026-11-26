@@ -82,6 +82,21 @@
       transform: translateY(16px);
     }
   }
+  /* Chuyển bước trong form nhiều bước: trượt ngang theo hướng đi + hiện dần (250 ms, ease-out) */
+  --animate-step-next: step-next 250ms ease-out;
+  --animate-step-back: step-back 250ms ease-out;
+  @keyframes step-next {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+  }
+  @keyframes step-back {
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+  }
   @keyframes toast-out {
     to {
       opacity: 0;

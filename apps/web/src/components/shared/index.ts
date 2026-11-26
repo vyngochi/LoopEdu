@@ -2,7 +2,7 @@ export { cx } from "./cx";
 export * from "./icons";
 export { Button, IconButton, buttonClass, type ButtonVariant, type ButtonSize } from "./button";
 export { RecordButton, type RecordState } from "./record-button";
-export { TextField, TextArea } from "./field";
+export { TextField, TextArea, SelectField } from "./field";
 export { Checkbox, Radio, Switch } from "./choice";
 export { SegmentedControl } from "./segmented-control";
 export { Tag, Chip, type TagTone } from "./tag";

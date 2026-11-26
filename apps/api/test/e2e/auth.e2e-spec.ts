@@ -134,6 +134,20 @@ describe('auth (e2e)', () => {
     await http().post('/api/v1/auth/google').send({}).expect(400);
   });
 
+  it('onboards through PUT /me/profile: 400 for a bad body, 403 AGE_NOT_ELIGIBLE under 14, 200 with the profile', async () => {
+    const { accessToken } = AuthSessionSchema.parse((await signIn('onboard@example.com')).body);
+    const put = (body: object) =>
+      http().put('/api/v1/me/profile').set('Authorization', `Bearer ${accessToken}`).send(body);
+    const year = new Date().getUTCFullYear();
+
+    expect(ApiErrorSchema.parse((await put({ timezone: 'Mars/Olympus' }).expect(400)).body).code).toBe('VALIDATION_FAILED');
+    expect(ApiErrorSchema.parse((await put({ birthYear: year - 10 }).expect(403)).body).code).toBe('AGE_NOT_ELIGIBLE');
+
+    const ok = await put({ birthYear: year - 18, timezone: 'Asia/Ho_Chi_Minh', examTrack: 'toeic', level: 'beginner', dailyGoalMinutes: 15 }).expect(200);
+    expect(MeResponseSchema.parse(ok.body).profile).toMatchObject({ examTrack: 'toeic', dailyGoalMinutes: 15 });
+    await http().put('/api/v1/me/profile').send({ level: 'beginner' }).expect(401);
+  });
+
   it('throttles login attempts per IP', async () => {
     const body = { email: 'throttle@example.com', password: 'whatever it is' };
     const codes: number[] = [];

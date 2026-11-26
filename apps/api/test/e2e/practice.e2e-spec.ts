@@ -49,6 +49,7 @@ describe('practice sessions (e2e)', () => {
   it('needs a signed-in learner', async () => {
     await send('post', '/practice-sessions', false).send({ questionSetId: unknownId }).expect(401);
     await send('get', `/practice-sessions/${unknownId}`, false).expect(401);
+    await send('post', `/practice-sessions/${unknownId}/complete`, false).send({ selfRating: 'good' }).expect(401);
   });
 
   it('rejects malformed requests and answers NOT_FOUND for unknown ids', async () => {
@@ -59,5 +60,14 @@ describe('practice sessions (e2e)', () => {
     for (const res of [await send('post', '/practice-sessions').send({ questionSetId: unknownId }).expect(404), await send('get', `/practice-sessions/${unknownId}`).expect(404)]) {
       expect(ApiErrorSchema.parse(res.body).code).toBe('NOT_FOUND');
     }
+  });
+
+  it('validates the completion request and answers NOT_FOUND for an unknown session', async () => {
+    for (const body of [{}, { selfRating: 'great' }]) {
+      const res = await send('post', `/practice-sessions/${unknownId}/complete`).send(body).expect(400);
+      expect(ApiErrorSchema.parse(res.body).code).toBe('VALIDATION_FAILED');
+    }
+    const res = await send('post', `/practice-sessions/${unknownId}/complete`).send({ selfRating: 'good' }).expect(404);
+    expect(ApiErrorSchema.parse(res.body).code).toBe('NOT_FOUND');
   });
 });

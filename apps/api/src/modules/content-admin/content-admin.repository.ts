@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import type { BlueprintRules, ExamTrack, QuestionContent, SectionCode } from '@loopedu/shared';
-import type { Database } from '../../db/database.js';
+import type { Database, Tx } from '../../db/database.js';
 import {
   adminAuditLogs,
   examBlueprints,
@@ -16,7 +16,6 @@ import {
 export type BlueprintRow = typeof examBlueprints.$inferSelect;
 export type TopicRow = typeof topics.$inferSelect;
 type SetStatus = typeof questionSets.$inferSelect.status;
-type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 // Keys sorted so the same content always hashes the same, whatever order the editor sent the fields in.
 const sortKeys = (_: string, v: unknown) =>

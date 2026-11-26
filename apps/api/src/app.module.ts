@@ -7,6 +7,8 @@ import { JwtAuthGuard } from './common/jwt-auth.guard.js';
 import { RolesGuard } from './common/roles.guard.js';
 import * as schema from './db/schema/index.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { ContentAdminModule } from './modules/content-admin/content-admin.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
 @Module({
@@ -17,6 +19,8 @@ import { HealthModule } from './modules/health/health.module.js';
       useFactory: () => ({ drizzle, connection: process.env.DATABASE_URL ?? '', schema }),
     }),
     AuthModule,
+    CatalogModule,
+    ContentAdminModule,
     HealthModule,
   ],
   providers: [

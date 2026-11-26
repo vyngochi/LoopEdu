@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MagicLinkRequestSchema, SECTIONS_BY_TRACK, UpdateProfileRequestSchema, reviewDueDates } from '../src/index.js';
+import { CreateBlueprintRequestSchema, DEFAULT_BLUEPRINT_RULES, MagicLinkRequestSchema, SECTIONS_BY_TRACK, UpdateProfileRequestSchema, reviewDueDates } from '../src/index.js';
 
 describe('UpdateProfileRequestSchema', () => {
   it('accepts IANA timezones and rejects made-up ones', () => {
@@ -47,5 +47,26 @@ describe('MagicLinkRequestSchema', () => {
 describe('SECTIONS_BY_TRACK', () => {
   it('keeps TOEIC Describe a picture out of the MVP', () => {
     expect(SECTIONS_BY_TRACK.toeic).toHaveLength(4);
+  });
+});
+
+describe('CreateBlueprintRequestSchema', () => {
+  it('accepts the default rules of both tracks', () => {
+    for (const examType of ['ielts', 'toeic'] as const) {
+      const r = CreateBlueprintRequestSchema.safeParse({ examType, rules: DEFAULT_BLUEPRINT_RULES[examType] });
+      expect(r.success, examType).toBe(true);
+    }
+  });
+
+  it('rejects rules for the wrong track and missing sections', () => {
+    expect(CreateBlueprintRequestSchema.safeParse({ examType: 'toeic', rules: DEFAULT_BLUEPRINT_RULES.ielts }).success).toBe(false);
+    const { ielts_p1 } = DEFAULT_BLUEPRINT_RULES.ielts.sections;
+    expect(CreateBlueprintRequestSchema.safeParse({ examType: 'ielts', rules: { sections: { ielts_p1 } } }).success).toBe(false);
+  });
+
+  it('rejects a range whose min exceeds max', () => {
+    const ielts = structuredClone(DEFAULT_BLUEPRINT_RULES.ielts);
+    ielts.sections.ielts_p1!.speakSeconds = { min: 50, max: 40 };
+    expect(CreateBlueprintRequestSchema.safeParse({ examType: 'ielts', rules: ielts }).success).toBe(false);
   });
 });

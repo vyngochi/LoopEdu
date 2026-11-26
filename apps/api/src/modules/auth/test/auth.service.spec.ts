@@ -6,6 +6,7 @@ import { AccessTokenService } from '../access-token.service.js';
 import type { AuthMailer } from '../auth.mailer.js';
 import { AuthRepository } from '../auth.repository.js';
 import { AuthService } from '../auth.service.js';
+import type { GoogleIdTokenVerifier } from '../google-id-token.verifier.js';
 
 let db: Database;
 let close: () => Promise<void>;
@@ -23,8 +24,20 @@ beforeEach(() => {
   const mailer = {
     sendMagicLink: vi.fn(async (to: string, link: string) => void sent.push({ to, link })),
   } as unknown as AuthMailer;
-  service = new AuthService(new AuthRepository(db), new AccessTokenService(), mailer);
+  service = new AuthService(new AuthRepository(db), new AccessTokenService(), mailer, googleVerifier);
 });
+
+// Fake Google: the "ID token" is just the identity as JSON, anything else is invalid.
+const googleVerifier = {
+  verify: async (t: string) => {
+    try {
+      return JSON.parse(t) as { email: string; emailVerified: boolean };
+    } catch {
+      return null;
+    }
+  },
+} as unknown as GoogleIdTokenVerifier;
+const googleToken = (email: string, emailVerified = true) => JSON.stringify({ email, emailVerified });
 
 const tokenOf = (link: string) => new URL(link).searchParams.get('token')!;
 const unauthorized = { response: { code: 'UNAUTHORIZED' } };
@@ -58,7 +71,7 @@ describe('requestMagicLink', () => {
 
   it('does not fail when the mail cannot be sent', async () => {
     const failing = { sendMagicLink: vi.fn().mockRejectedValue(new Error('smtp down')) } as unknown as AuthMailer;
-    const svc = new AuthService(new AuthRepository(db), new AccessTokenService(), failing);
+    const svc = new AuthService(new AuthRepository(db), new AccessTokenService(), failing, googleVerifier);
     await expect(svc.requestMagicLink('smtp@example.com', '10.0.0.3')).resolves.toBeUndefined();
   });
 
@@ -114,6 +127,34 @@ describe('verify', () => {
   });
 });
 
+describe('loginWithGoogle', () => {
+  it('signs up a new account on first use and signs the same one in next time', async () => {
+    const first = await service.loginWithGoogle(googleToken('g.new@example.com'), null);
+    const { id } = await service.authenticate(first.accessToken);
+    expect((await service.me(id)).roles).toEqual(['learner']);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    expect(user.emailVerifiedAt).not.toBeNull();
+
+    const second = await service.loginWithGoogle(googleToken('g.new@example.com'), null);
+    expect((await service.authenticate(second.accessToken)).id).toBe(id);
+  });
+
+  it('signs in the existing account that has the same email', async () => {
+    const { id } = await service.authenticate((await service.verify(await linkFor('g.same@example.com'), null)).accessToken);
+    const session = await service.loginWithGoogle(googleToken('g.same@example.com'), null);
+    expect((await service.authenticate(session.accessToken)).id).toBe(id);
+  });
+
+  it('rejects an invalid token, an unverified email and a soft-deleted account', async () => {
+    await expect(service.loginWithGoogle('garbage', null)).rejects.toMatchObject(unauthorized);
+    await expect(service.loginWithGoogle(googleToken('g.unver@example.com', false), null)).rejects.toMatchObject(unauthorized);
+
+    await service.loginWithGoogle(googleToken('g.gone@example.com'), null);
+    await db.update(users).set({ deletedAt: new Date() }).where(eq(users.email, 'g.gone@example.com'));
+    await expect(service.loginWithGoogle(googleToken('g.gone@example.com'), null)).rejects.toMatchObject(unauthorized);
+  });
+});
+
 describe('authenticate', () => {
   it('rejects garbage, a token signed with another key, and a deleted account', async () => {
     await expect(service.authenticate('garbage')).rejects.toMatchObject(unauthorized);
@@ -166,6 +207,60 @@ describe('me', () => {
     const me = await service.me(id);
     expect(me).toMatchObject({ email: 'me@example.com', roles: ['learner'] });
     expect(me.profile).toMatchObject({ timezone: null, birthYear: null, guardianConsent: false, hobbyKeys: [] });
+  });
+});
+
+describe('updateProfile (onboarding)', () => {
+  const thisYear = new Date().getUTCFullYear();
+  const signUp = async (email: string) =>
+    // Own IP: the tests share one in-test DB, and 10.0.0.1 is close to the 20/hour per-IP cap.
+    (await service.authenticate((await service.verify(await linkFor(email, '10.0.0.4'), null)).accessToken)).id;
+
+  it('saves the onboarding fields and returns the updated profile', async () => {
+    const id = await signUp('onboard@example.com');
+    const me = await service.updateProfile(id, {
+      birthYear: thisYear - 20,
+      timezone: 'Asia/Ho_Chi_Minh',
+      examTrack: 'ielts',
+      level: 'intermediate',
+      dailyGoalMinutes: 10,
+    });
+    expect(me.profile).toMatchObject({
+      birthYear: thisYear - 20,
+      timezone: 'Asia/Ho_Chi_Minh',
+      examTrack: 'ielts',
+      level: 'intermediate',
+      dailyGoalMinutes: 10,
+    });
+  });
+
+  it('accepts 14 by year, refuses 13 with AGE_NOT_ELIGIBLE and saves nothing from that request', async () => {
+    const young = await signUp('young@example.com');
+    await expect(service.updateProfile(young, { birthYear: thisYear - 13, timezone: 'UTC' })).rejects.toMatchObject({
+      response: { code: 'AGE_NOT_ELIGIBLE' },
+    });
+    expect((await service.me(young)).profile).toMatchObject({ birthYear: null, timezone: null });
+
+    const fourteen = await signUp('fourteen@example.com');
+    expect((await service.updateProfile(fourteen, { birthYear: thisYear - 14 })).profile.birthYear).toBe(thisYear - 14);
+  });
+
+  it('keeps the birth year once set: the same year is fine, another one is a CONFLICT', async () => {
+    const id = await signUp('once@example.com');
+    await service.updateProfile(id, { birthYear: thisYear - 15 });
+    await expect(service.updateProfile(id, { birthYear: thisYear - 15, level: 'beginner' })).resolves.toBeDefined();
+    await expect(service.updateProfile(id, { birthYear: thisYear - 30, level: 'advanced' })).rejects.toMatchObject({
+      response: { code: 'CONFLICT' },
+    });
+    expect((await service.me(id)).profile).toMatchObject({ birthYear: thisYear - 15, level: 'beginner' });
+  });
+
+  it('changes only the fields that are sent', async () => {
+    const id = await signUp('partial@example.com');
+    await service.updateProfile(id, { timezone: 'Asia/Bangkok', dailyGoalMinutes: 15 });
+    const me = await service.updateProfile(id, { dailyGoalMinutes: 5 });
+    expect(me.profile).toMatchObject({ timezone: 'Asia/Bangkok', dailyGoalMinutes: 5 });
+    expect((await service.updateProfile(id, {})).profile.dailyGoalMinutes).toBe(5);
   });
 });
 

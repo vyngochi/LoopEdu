@@ -1,12 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { hashPassword, verifyPassword } from './password.js';
 import { Injectable, Logger } from '@nestjs/common';
-import type { MeResponse } from '@loopedu/shared';
+import { MIN_AGE, type MeResponse, type UpdateProfileRequest } from '@loopedu/shared';
 import { ApiException } from '../../common/api-exception.js';
 import type { AuthUser } from '../../common/current-user.js';
 import { ACCESS_TOKEN_TTL_SECONDS, AccessTokenService } from './access-token.service.js';
 import { AuthMailer } from './auth.mailer.js';
 import { AuthRepository } from './auth.repository.js';
+import { GoogleIdTokenVerifier } from './google-id-token.verifier.js';
 
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -35,6 +36,7 @@ export class AuthService {
     private readonly repo: AuthRepository,
     private readonly accessTokens: AccessTokenService,
     private readonly mailer: AuthMailer,
+    private readonly google: GoogleIdTokenVerifier,
   ) {}
 
   /**
@@ -74,6 +76,20 @@ export class AuthService {
     }
     await this.repo.markLogin(userId);
     return this.issueSession(userId, ip);
+  }
+
+  /**
+   * Google sign-in and sign-up in one: a verified Google email proves the address like a magic link does,
+   * so it signs in the account with that email, creating it on first use.
+   * shortcut: accounts are matched by email, not by Google `sub`; add a sub column if Google emails can change hands.
+   */
+  async loginWithGoogle(idToken: string, ip: string | null): Promise<Session> {
+    const identity = await this.google.verify(idToken);
+    if (!identity?.emailVerified) throw new ApiException('UNAUTHORIZED', 'Google sign-in failed');
+    const user = await this.repo.upsertLearner(identity.email);
+    if (user.deletedAt) throw new ApiException('UNAUTHORIZED', 'Google sign-in failed');
+    await this.repo.markLogin(user.id);
+    return this.issueSession(user.id, ip);
   }
 
   /** Email + password sign-in. Every failure looks the same: wrong password, no such email, no password set, locked. */
@@ -157,6 +173,20 @@ export class AuthService {
         hobbyKeys: p.hobbyKeys,
       },
     };
+  }
+
+  /**
+   * Onboarding and Settings. Under-14s are refused (age by year, PRD 7.7) and nothing is saved.
+   * Birth year cannot be changed once set, so a 14-15 learner cannot step around guardian consent.
+   */
+  async updateProfile(userId: string, patch: UpdateProfileRequest): Promise<MeResponse> {
+    if (patch.birthYear !== undefined && new Date().getUTCFullYear() - patch.birthYear < MIN_AGE) {
+      throw new ApiException('AGE_NOT_ELIGIBLE', `LoopEdu is for learners aged ${MIN_AGE} and over`);
+    }
+    if (Object.keys(patch).length > 0 && !(await this.repo.updateProfile(userId, patch))) {
+      throw new ApiException('CONFLICT', 'Birth year is already set');
+    }
+    return this.me(userId);
   }
 
   private async issueSession(userId: string, ip: string | null): Promise<Session> {

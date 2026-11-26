@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Logo, buttonClass, cx } from "@/components/shared";
+import { AccountMenu } from "@/components/auth/account-menu";
 import { ANCHOR, NAV } from "./content";
 
 /** Khối nội dung của một mục landing: nền full-width, nội dung giới hạn 1200 px. */
@@ -38,11 +39,7 @@ export function Header() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <span className="hidden sm:block">
-            <a href={`#${ANCHOR.start}`} className={buttonClass({ variant: "ghost" })}>
-              Đăng nhập
-            </a>
-          </span>
+          <AccountMenu />
           <a href={`#${ANCHOR.start}`} className={buttonClass({ variant: "primary" })}>
             Học thử miễn phí
           </a>

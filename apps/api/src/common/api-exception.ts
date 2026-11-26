@@ -10,6 +10,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   CONFLICT: 409,
   QUOTA_EXCEEDED: 429,
   AI_UNAVAILABLE: 503,
+  AGE_NOT_ELIGIBLE: 403,
 };
 
 /** Services throw this; ApiExceptionFilter turns it into the `{ code, message }` body. */

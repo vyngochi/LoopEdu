@@ -1,6 +1,6 @@
 "use client";
 
-import type { PracticeSession, QuestionSetDetail, SupportLevel } from "@loopedu/shared";
+import type { PracticeSession, QuestionSetDetail, SelfRating, SupportLevel } from "@loopedu/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -9,13 +9,14 @@ import {
   Banner,
   Button,
   EmptyState,
+  Radio,
   SegmentedControl,
   Skeleton,
   Tag,
   buttonClass,
 } from "@/components/shared";
 import { ApiRequestError } from "@/lib/api";
-import { getQuestionSet, startPracticeSession } from "@/lib/practice";
+import { completePracticeSession, getQuestionSet, startPracticeSession } from "@/lib/practice";
 import { PhaseTimer } from "./phase-timer";
 import { LEVEL_LABEL, SECTION_LABEL, firstPhase, nextPhase, phaseSeconds, type Phase } from "./player-state";
 import { QuestionBody } from "./question-body";
@@ -25,6 +26,13 @@ const SUPPORT_OPTIONS = [
   { value: "diagram", label: "Từ khóa" },
   { value: "none", label: "Không hỗ trợ" },
 ] as const satisfies readonly { value: SupportLevel; label: string }[];
+
+// Ba mức tự đánh giá của PRD (mục 6). Không phải band hay điểm thi.
+const RATING_OPTIONS = [
+  { value: "not_yet", label: "Chưa nhớ" },
+  { value: "partial", label: "Nhớ một phần" },
+  { value: "good", label: "Trả lời tương đối tốt" },
+] as const satisfies readonly { value: SelfRating; label: string }[];
 
 const SUPPORT_HINT: Record<SupportLevel, string> = {
   sample: "Đọc theo bài mẫu nói về chính bạn. Hợp khi mới học đề này.",
@@ -61,6 +69,10 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
   const [startFailed, setStartFailed] = useState(false);
   const [session, setSession] = useState<PracticeSession | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "done" });
+  const [rating, setRating] = useState<SelfRating | null>(null);
+  const [completing, setCompleting] = useState(false);
+  const [completeFailed, setCompleteFailed] = useState(false);
+  const [finished, setFinished] = useState(false);
 
   const fail = useCallback(
     (err: unknown) => {
@@ -94,6 +106,30 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
       setStarting(false);
     }
   }
+
+  async function complete() {
+    if (!session || !rating) return;
+    setCompleting(true);
+    setCompleteFailed(false);
+    try {
+      await completePracticeSession(session.id, rating);
+      setFinished(true);
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.code === "UNAUTHORIZED") return router.replace("/login");
+      setCompleteFailed(true);
+    } finally {
+      setCompleting(false);
+    }
+  }
+
+  // Quay lại màn chọn mức hỗ trợ để mở một phiên mới.
+  const again = () => {
+    setSession(null);
+    setPhase({ kind: "done" });
+    setRating(null);
+    setFinished(false);
+    setCompleteFailed(false);
+  };
 
   const advance = useCallback(() => {
     setPhase((p) => (session ? nextPhase(session.timing, p) : p));
@@ -165,22 +201,46 @@ export function PlayerScreen({ questionSetId }: { questionSetId: string }) {
   const step = phase.kind === "done" ? steps : phase.step + 1;
   const progress = phase.kind === "done" ? "Xong" : steps > 1 ? `Câu ${step}/${steps}` : SECTION_LABEL[session.questionSet.sectionCode];
 
-  if (phase.kind === "done")
+  if (phase.kind === "done" && finished)
     return shell(
-      header(progress),
-      <div className="flex flex-col gap-4">
-        <QuestionBody session={session} phase={{ kind: "prep", step: 0 }} />
-        <Banner tone="info" title="Hết giờ rồi">
-          Phần ghi âm và tự đánh giá sẽ có ở bản tới. Bạn có thể luyện lại đề này hoặc chọn đề khác.
-        </Banner>
-      </div>,
+      header("Xong"),
+      <Banner tone="success" title="Đã ghi nhận phiên luyện">
+        Bạn tự đánh giá: {RATING_OPTIONS.find((o) => o.value === rating)?.label}.
+      </Banner>,
       <div className="flex gap-3">
-        <Button variant="outline" size="l" fullWidth onClick={() => { setSession(null); setPhase({ kind: "done" }); }}>
+        <Button variant="outline" size="l" fullWidth onClick={again}>
           Luyện lại
         </Button>
         <Link href="/practice" className={buttonClass({ variant: "primary", size: "l", fullWidth: true })}>
           Chọn đề khác
         </Link>
+      </div>,
+    );
+
+  if (phase.kind === "done")
+    return shell(
+      header(progress),
+      <div className="flex flex-col gap-5">
+        <fieldset className="flex flex-col gap-3">
+          <legend className="type-h2 mb-1 text-heading">Bạn thấy lần này thế nào?</legend>
+          <p className="type-body text-fg-secondary">Tự đánh giá thôi, để bạn biết mình nắm đề này đến đâu.</p>
+          {RATING_OPTIONS.map((o) => (
+            <Radio key={o.value} name="rating" label={o.label} checked={rating === o.value} onChange={() => setRating(o.value)} />
+          ))}
+        </fieldset>
+        {completeFailed && (
+          <Banner tone="error" title="Chưa lưu được kết quả">
+            Thử lại sau vài giây. Phiên luyện của bạn vẫn còn.
+          </Banner>
+        )}
+      </div>,
+      <div className="flex gap-3">
+        <Button variant="outline" size="l" fullWidth onClick={again}>
+          Luyện lại
+        </Button>
+        <Button variant="primary" size="l" fullWidth disabled={!rating} loading={completing} onClick={() => void complete()}>
+          {completing ? "Đang lưu…" : "Hoàn thành"}
+        </Button>
       </div>,
     );
 

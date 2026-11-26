@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDrizzle } from '@nestjs/drizzle';
 import { and, eq } from 'drizzle-orm';
-import type { SupportLevel } from '@loopedu/shared';
+import type { SelfRating, SupportLevel } from '@loopedu/shared';
 import type { Database } from '../../db/database.js';
 import { practiceSessions } from '../../db/schema/index.js';
 
@@ -22,6 +22,19 @@ export class PracticeRepository {
       .select()
       .from(practiceSessions)
       .where(and(eq(practiceSessions.id, id), eq(practiceSessions.userId, userId)));
+    return row ?? null;
+  }
+
+  /**
+   * in_progress → completed in one conditional UPDATE, so parallel or repeated calls transition at most once.
+   * Null when the session is not the user's or is no longer in progress.
+   */
+  async complete(userId: string, id: string, selfRating: SelfRating): Promise<PracticeSessionRow | null> {
+    const [row] = await this.db
+      .update(practiceSessions)
+      .set({ status: 'completed', completedAt: new Date(), selfRating })
+      .where(and(eq(practiceSessions.id, id), eq(practiceSessions.userId, userId), eq(practiceSessions.status, 'in_progress')))
+      .returning();
     return row ?? null;
   }
 }

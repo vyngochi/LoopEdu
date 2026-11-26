@@ -11,6 +11,15 @@ export const CreatePracticeSessionRequestSchema = z.object({
 });
 export type CreatePracticeSessionRequest = z.infer<typeof CreatePracticeSessionRequestSchema>;
 
+// "Chưa nhớ / Nhớ một phần / Trả lời tương đối tốt" (PRD 6); same values as the database enum.
+export const SELF_RATINGS = ['not_yet', 'partial', 'good'] as const;
+export const SelfRatingSchema = z.enum(SELF_RATINGS);
+export type SelfRating = z.infer<typeof SelfRatingSchema>;
+
+// The session id is the idempotency key: completing twice with the same rating returns the same session.
+export const CompletePracticeSessionRequestSchema = z.object({ selfRating: SelfRatingSchema });
+export type CompletePracticeSessionRequest = z.infer<typeof CompletePracticeSessionRequestSchema>;
+
 const Seconds = z.int().min(0).max(600);
 
 // One entry per question the learner answers; a set without a question list has one entry.
@@ -22,6 +31,8 @@ export const PracticeSessionSchema = z.object({
   status: z.enum(['in_progress', 'completed', 'abandoned']),
   supportLevel: SupportLevelSchema,
   startedAt: z.string(),
+  completedAt: z.string().nullable(),
+  selfRating: SelfRatingSchema.nullable(),
   questionSet: z.object({
     id: z.uuid(),
     topic: z.object({ id: z.uuid(), slug: z.string(), name: z.string() }),

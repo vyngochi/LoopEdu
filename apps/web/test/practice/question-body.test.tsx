@@ -9,6 +9,8 @@ const session = (over: Partial<PracticeSession> = {}): PracticeSession => ({
   status: "in_progress",
   supportLevel: "sample",
   startedAt: "2026-11-27T00:00:00.000Z",
+  completedAt: null,
+  selfRating: null,
   questionSet: { id: "00000000-0000-4000-8000-000000000003", topic, examType: "ielts", sectionCode: "ielts_p2", difficulty: "intermediate", versionNo: 1 },
   content: {
     prompt: "Describe a piece of technology you use regularly.",

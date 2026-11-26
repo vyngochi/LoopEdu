@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { DEFAULT_BLUEPRINT_RULES, type CreateQuestionSetRequest } from '@loopedu/shared';
 import { createTestDb } from '../../../common/testing/test-db.js';
-import { questionSetVersions, questionSets, topicRequests, users } from '../../../db/schema/index.js';
+import { practiceSessions, questionSetVersions, questionSets, topicRequests, users } from '../../../db/schema/index.js';
 import type { Database } from '../../../db/database.js';
 import { CatalogRepository } from '../../catalog/catalog.repository.js';
 import { CatalogService } from '../../catalog/catalog.service.js';
@@ -162,5 +162,48 @@ describe('timing', () => {
       ],
     });
     expect(session.sampleAnswers).toEqual(['At nine.', 'There is one workshop.']);
+  });
+});
+
+describe('completing a session (AC-PRACTICE-03)', () => {
+  const start = async (user = alice) => {
+    const set = await published();
+    return practice.start(user, { questionSetId: set.id, supportLevel: 'sample' });
+  };
+
+  it('records the self-rating and completion time', async () => {
+    const session = await start();
+    const done = await practice.complete(alice, session.id, { selfRating: 'partial' });
+    expect(done).toMatchObject({ id: session.id, status: 'completed', selfRating: 'partial' });
+    expect(done.completedAt).not.toBeNull();
+    expect(await practice.get(alice, session.id)).toMatchObject({ status: 'completed', selfRating: 'partial' });
+  });
+
+  it('answers a repeated request with the same stored result', async () => {
+    const session = await start();
+    const first = await practice.complete(alice, session.id, { selfRating: 'good' });
+    const again = await practice.complete(alice, session.id, { selfRating: 'good' });
+    expect(again.completedAt).toBe(first.completedAt);
+  });
+
+  it('transitions once when the same request arrives in parallel', async () => {
+    const session = await start();
+    const results = await Promise.all(Array.from({ length: 5 }, () => practice.complete(alice, session.id, { selfRating: 'good' })));
+    expect(new Set(results.map((r) => r.completedAt)).size).toBe(1);
+  });
+
+  it('refuses a different rating after completion, an abandoned session, other learners and unknown ids', async () => {
+    const session = await start();
+    await practice.complete(alice, session.id, { selfRating: 'good' });
+    await expect(practice.complete(alice, session.id, { selfRating: 'not_yet' })).rejects.toMatchObject({ response: { code: 'CONFLICT' } });
+
+    const abandoned = await start();
+    await db.update(practiceSessions).set({ status: 'abandoned' }).where(eq(practiceSessions.id, abandoned.id));
+    await expect(practice.complete(alice, abandoned.id, { selfRating: 'good' })).rejects.toMatchObject({ response: { code: 'CONFLICT' } });
+
+    const mine = await start();
+    await expect(practice.complete(bob, mine.id, { selfRating: 'good' })).rejects.toMatchObject(notFound);
+    await expect(practice.get(alice, mine.id)).resolves.toMatchObject({ status: 'in_progress', selfRating: null });
+    await expect(practice.complete(alice, crypto.randomUUID(), { selfRating: 'good' })).rejects.toMatchObject(notFound);
   });
 });

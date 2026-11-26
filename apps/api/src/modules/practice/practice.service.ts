@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   renderPlaceholders,
   type BlueprintRules,
+  type CompletePracticeSessionRequest,
   type CreatePracticeSessionRequest,
   type PlayerStep,
   type PracticeSession,
@@ -56,6 +57,19 @@ export class PracticeService {
     return this.view(row);
   }
 
+  /**
+   * Finishes a session with the learner's self-rating (AC-PRACTICE-03). Repeating the same request returns
+   * the stored result; a different rating, or a session that is not in progress, is a CONFLICT.
+   */
+  async complete(userId: string, id: string, req: CompletePracticeSessionRequest): Promise<PracticeSession> {
+    const done = await this.repo.complete(userId, id, req.selfRating);
+    if (done) return this.view(done);
+    const existing = await this.repo.findOwned(userId, id);
+    if (!existing) throw new ApiException('NOT_FOUND', 'Practice session not found');
+    if (existing.status === 'completed' && existing.selfRating === req.selfRating) return this.view(existing);
+    throw new ApiException('CONFLICT', 'This session is already finished');
+  }
+
   /** What the player gets: only the help the chosen support level allows (AC-DIAGRAM-02). */
   private async view(row: PracticeSessionRow): Promise<PracticeSession> {
     const v = await this.catalog.getVersion(row.questionSetVersionId);
@@ -66,6 +80,8 @@ export class PracticeService {
       status: row.status,
       supportLevel: level,
       startedAt: row.startedAt.toISOString(),
+      completedAt: row.completedAt?.toISOString() ?? null,
+      selfRating: row.selfRating,
       questionSet: v.set,
       content: level === 'none' ? content : { ...content, ideaHints, usefulExpressions },
       sampleAnswers: level === 'sample' ? renderSamples(v.raw) : null,

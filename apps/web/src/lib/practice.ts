@@ -3,6 +3,7 @@ import {
   QuestionSetDetailSchema,
   QuestionSetListSchema,
   type ExamTrack,
+  type SelfRating,
   type SupportLevel,
 } from "@loopedu/shared";
 import { authed } from "./auth";
@@ -16,3 +17,7 @@ export const startPracticeSession = (questionSetId: string, supportLevel: Suppor
 
 /** Đề để hiện màn chọn mức hỗ trợ trước khi mở phiên. */
 export const getQuestionSet = (id: string) => authed("GET", `/question-sets/${id}`, undefined, QuestionSetDetailSchema);
+
+/** Hoàn thành phiên kèm tự đánh giá. Gọi lại cùng đánh giá thì nhận lại đúng kết quả đã lưu. */
+export const completePracticeSession = (id: string, selfRating: SelfRating) =>
+  authed("POST", `/practice-sessions/${id}/complete`, { selfRating }, PracticeSessionSchema);

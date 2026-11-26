@@ -2,6 +2,8 @@ import {
   PracticeSessionSchema,
   QuestionSetDetailSchema,
   QuestionSetListSchema,
+  ReviewListSchema,
+  ReviewSessionSchema,
   type ExamTrack,
   type SelfRating,
   type SupportLevel,
@@ -21,3 +23,14 @@ export const getQuestionSet = (id: string) => authed("GET", `/question-sets/${id
 /** Hoàn thành phiên kèm tự đánh giá. Gọi lại cùng đánh giá thì nhận lại đúng kết quả đã lưu. */
 export const completePracticeSession = (id: string, selfRating: SelfRating) =>
   authed("POST", `/practice-sessions/${id}/complete`, { selfRating }, PracticeSessionSchema);
+
+/** Bài ôn đến hạn hoặc quá hạn (theo ngày địa phương của người học), cũ nhất trước. */
+export const listDueReviews = (limit: number, offset: number) =>
+  authed("GET", `/reviews?status=due&limit=${limit}&offset=${offset}`, undefined, ReviewListSchema);
+
+/** Một lượt ôn, dựng từ đúng phiên bản đề người học đã học. */
+export const getReviewSession = (id: string, supportLevel: SupportLevel) =>
+  authed("GET", `/review-tasks/${id}?supportLevel=${supportLevel}`, undefined, ReviewSessionSchema);
+
+export const completeReview = (id: string, selfRating: SelfRating, supportLevel: SupportLevel) =>
+  authed("POST", `/review-tasks/${id}/complete`, { selfRating, supportLevel }, ReviewSessionSchema);

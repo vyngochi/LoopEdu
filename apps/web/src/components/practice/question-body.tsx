@@ -1,8 +1,8 @@
-import type { PracticeSession } from "@loopedu/shared";
+import type { PlayerView } from "@loopedu/shared";
 import { Card, Tag } from "@/components/shared";
 import type { Phase } from "./player-state";
 
-type Props = { session: PracticeSession; phase: Phase };
+type Props = { session: PlayerView; phase: Phase };
 
 /** Đề của câu hiện tại. Part 1 hiện từng câu; các dạng còn lại hiện cả đề. */
 export function QuestionBody({ session, phase }: Props) {

@@ -26,11 +26,11 @@ beforeAll(async () => {
   ({ db, close } = await createTestDb());
   admin = new ContentAdminService(new ContentAdminRepository(db));
   const auth = { me: async () => ({ profile: { timezone } }) } as unknown as AuthService;
+  const catalog = new CatalogService(new CatalogRepository(db), admin);
   practice = new PracticeService(
     new PracticeRepository(db),
-    new CatalogService(new CatalogRepository(db)),
-    admin,
-    new ReviewService(new ReviewRepository()),
+    catalog,
+    new ReviewService(new ReviewRepository(db), catalog, auth),
     auth,
   );
   [{ id: alice }] = await db.insert(users).values({ email: 'alice@example.com' }).returning();

@@ -37,3 +37,9 @@ export function localDateIn(timezone: string, at: Date): string {
   // en-CA formats as YYYY-MM-DD.
   return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
 }
+
+/** Whole calendar days from `from` to `to` (both YYYY-MM-DD); negative when `to` is earlier. */
+export function daysBetween(from: string, to: string): number {
+  const day = (d: string) => Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10)));
+  return Math.round((day(to) - day(from)) / 86_400_000);
+}

@@ -28,3 +28,12 @@ export function reviewDueDates(anchorLocalDate: string): string[] {
     new Date(anchor + days * 86_400_000).toISOString().slice(0, 10),
   );
 }
+
+/**
+ * The learner's calendar day (YYYY-MM-DD) at an instant, in their IANA timezone. This is the review
+ * anchor: a completion at 23:30 UTC is already tomorrow in Asia/Ho_Chi_Minh.
+ */
+export function localDateIn(timezone: string, at: Date): string {
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
+}

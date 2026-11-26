@@ -1,12 +1,15 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { DEFAULT_BLUEPRINT_RULES, type CreateQuestionSetRequest } from '@loopedu/shared';
 import { createTestDb } from '../../../common/testing/test-db.js';
-import { practiceSessions, questionSetVersions, questionSets, topicRequests, users } from '../../../db/schema/index.js';
+import { learningItems, practiceSessions, questionSetVersions, questionSets, reviewTasks, topicRequests, users } from '../../../db/schema/index.js';
 import type { Database } from '../../../db/database.js';
 import { CatalogRepository } from '../../catalog/catalog.repository.js';
 import { CatalogService } from '../../catalog/catalog.service.js';
 import { ContentAdminRepository } from '../../content-admin/content-admin.repository.js';
 import { ContentAdminService } from '../../content-admin/content-admin.service.js';
+import type { AuthService } from '../../auth/auth.service.js';
+import { ReviewRepository } from '../../review/review.repository.js';
+import { ReviewService } from '../../review/review.service.js';
 import { PracticeRepository } from '../practice.repository.js';
 import { PracticeService } from '../practice.service.js';
 
@@ -17,11 +20,19 @@ let practice: PracticeService;
 let topicId: string;
 let alice: string;
 let bob: string;
+let timezone = 'Asia/Ho_Chi_Minh';
 
 beforeAll(async () => {
   ({ db, close } = await createTestDb());
   admin = new ContentAdminService(new ContentAdminRepository(db));
-  practice = new PracticeService(new PracticeRepository(db), new CatalogService(new CatalogRepository(db)), admin);
+  const auth = { me: async () => ({ profile: { timezone } }) } as unknown as AuthService;
+  practice = new PracticeService(
+    new PracticeRepository(db),
+    new CatalogService(new CatalogRepository(db)),
+    admin,
+    new ReviewService(new ReviewRepository()),
+    auth,
+  );
   [{ id: alice }] = await db.insert(users).values({ email: 'alice@example.com' }).returning();
   [{ id: bob }] = await db.insert(users).values({ email: 'bob@example.com' }).returning();
   for (const examType of ['ielts', 'toeic'] as const) {
@@ -32,6 +43,7 @@ beforeAll(async () => {
   await admin.updateTopic({ id: alice, roles: ['admin'] }, topicId, { status: 'published' });
 }, 60_000);
 afterAll(() => close());
+afterEach(() => vi.useRealTimers());
 
 const part2 = {
   topic: 'Technology',
@@ -205,5 +217,93 @@ describe('completing a session (AC-PRACTICE-03)', () => {
     await expect(practice.complete(bob, mine.id, { selfRating: 'good' })).rejects.toMatchObject(notFound);
     await expect(practice.get(alice, mine.id)).resolves.toMatchObject({ status: 'in_progress', selfRating: null });
     await expect(practice.complete(alice, crypto.randomUUID(), { selfRating: 'good' })).rejects.toMatchObject(notFound);
+  });
+});
+
+describe('review schedule on first completion (AC-REVIEW-01, AC-REVIEW-02)', () => {
+  /** Completes a session of `setId` at a fixed instant, in a given timezone. */
+  async function completeAt(user: string, setId: string, instant: string, tz = 'Asia/Ho_Chi_Minh') {
+    timezone = tz;
+    const session = await practice.start(user, { questionSetId: setId, supportLevel: 'sample' });
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(instant));
+    try {
+      return await practice.complete(user, session.id, { selfRating: 'good' });
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  const scheduleOf = async (user: string, versionId: string) => {
+    const [item] = await db.select().from(learningItems).where(and(eq(learningItems.userId, user), eq(learningItems.questionSetVersionId, versionId)));
+    const tasks = item ? await db.select().from(reviewTasks).where(eq(reviewTasks.learningItemId, item.id)).orderBy(reviewTasks.milestoneDays) : [];
+    return { item, tasks };
+  };
+  const dues = (tasks: { milestoneDays: number | null; dueOn: string }[]) => tasks.map((t) => [t.milestoneDays, t.dueOn]);
+
+  it('creates D+3, D+7 and D+21 from the learner local date, across a month end', async () => {
+    const set = await published();
+    await completeAt(alice, set.id, '2027-01-29T10:00:00Z');
+    const { item, tasks } = await scheduleOf(alice, set.version.id);
+    expect(item).toMatchObject({ anchorLocalDate: '2027-01-29', anchorTimezone: 'Asia/Ho_Chi_Minh' });
+    expect(dues(tasks)).toEqual([[3, '2027-02-01'], [7, '2027-02-05'], [21, '2027-02-19']]);
+    expect(tasks.every((t) => t.kind === 'scheduled' && t.completedAt === null)).toBe(true);
+  });
+
+  it('uses the learner timezone, so 20:00 UTC on New Year Eve is already January 1 in Vietnam', async () => {
+    const set = await published();
+    await completeAt(alice, set.id, '2026-12-31T20:00:00Z');
+    expect(dues((await scheduleOf(alice, set.version.id)).tasks)).toEqual([[3, '2027-01-04'], [7, '2027-01-08'], [21, '2027-01-22']]);
+
+    const other = await published();
+    await completeAt(bob, other.id, '2026-12-31T20:00:00Z', 'America/Los_Angeles');
+    const { item, tasks } = await scheduleOf(bob, other.version.id);
+    expect(item.anchorLocalDate).toBe('2026-12-31');
+    expect(dues(tasks)).toEqual([[3, '2027-01-03'], [7, '2027-01-07'], [21, '2027-01-21']]);
+  });
+
+  it('counts the leap day', async () => {
+    const set = await published();
+    await completeAt(alice, set.id, '2028-02-28T10:00:00Z');
+    expect(dues((await scheduleOf(alice, set.version.id)).tasks)).toEqual([[3, '2028-03-02'], [7, '2028-03-06'], [21, '2028-03-20']]);
+  });
+
+  it('never reschedules: a later session of the same version, even in another timezone, adds nothing', async () => {
+    const set = await published();
+    await completeAt(alice, set.id, '2027-03-10T05:00:00Z');
+    const before = await scheduleOf(alice, set.version.id);
+    await completeAt(alice, set.id, '2027-03-20T05:00:00Z', 'America/New_York');
+    const after = await scheduleOf(alice, set.version.id);
+    expect(after.item.id).toBe(before.item.id);
+    expect(after.item.anchorTimezone).toBe('Asia/Ho_Chi_Minh');
+    expect(dues(after.tasks)).toEqual(dues(before.tasks));
+    expect(after.tasks).toHaveLength(3);
+  });
+
+  it('creates exactly one schedule for repeated and parallel completions', async () => {
+    const set = await published();
+    const session = await practice.start(alice, { questionSetId: set.id, supportLevel: 'sample' });
+    await Promise.all(Array.from({ length: 5 }, () => practice.complete(alice, session.id, { selfRating: 'good' })));
+    const { tasks } = await scheduleOf(alice, set.version.id);
+    expect(tasks).toHaveLength(3);
+  });
+
+  it('gives each learner their own schedule and none before completion', async () => {
+    const set = await published();
+    await practice.start(alice, { questionSetId: set.id, supportLevel: 'sample' });
+    expect((await scheduleOf(alice, set.version.id)).item).toBeUndefined();
+    await completeAt(alice, set.id, '2027-04-01T05:00:00Z');
+    await completeAt(bob, set.id, '2027-04-02T05:00:00Z');
+    expect((await scheduleOf(bob, set.version.id)).item.anchorLocalDate).toBe('2027-04-02');
+    expect((await scheduleOf(alice, set.version.id)).item.anchorLocalDate).toBe('2027-04-01');
+  });
+
+  it('keeps pointing a review at the version that was studied (AC-REVIEW-03)', async () => {
+    const set = await published();
+    await completeAt(alice, set.id, '2027-05-01T05:00:00Z');
+    await admin.saveQuestionSetContent(set.id, { ...part2, prompt: 'A newer version.' });
+    const { item } = await scheduleOf(alice, set.version.id);
+    expect(item.questionSetVersionId).toBe(set.version.id);
+    expect((await practice.get(alice, item.firstSessionId)).content.prompt).toBe(part2.prompt);
   });
 });

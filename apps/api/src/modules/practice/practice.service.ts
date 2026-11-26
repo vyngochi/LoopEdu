@@ -10,8 +10,10 @@ import {
   type SectionCode,
 } from '@loopedu/shared';
 import { ApiException } from '../../common/api-exception.js';
+import { AuthService } from '../auth/auth.service.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { ContentAdminService } from '../content-admin/content-admin.service.js';
+import { ReviewService } from '../review/review.service.js';
 import { PracticeRepository, type PracticeSessionRow } from './practice.repository.js';
 
 /**
@@ -43,6 +45,8 @@ export class PracticeService {
     private readonly repo: PracticeRepository,
     private readonly catalog: CatalogService,
     private readonly blueprints: ContentAdminService,
+    private readonly reviews: ReviewService,
+    private readonly auth: AuthService,
   ) {}
 
   /** Starts a session pinned to the set's current version (AC-PRACTICE-01: only sets this learner may see). */
@@ -58,11 +62,22 @@ export class PracticeService {
   }
 
   /**
-   * Finishes a session with the learner's self-rating (AC-PRACTICE-03). Repeating the same request returns
-   * the stored result; a different rating, or a session that is not in progress, is a CONFLICT.
+   * Finishes a session with the learner's self-rating (AC-PRACTICE-03) and, for the first completion of that
+   * version, schedules the 3-7-21 reviews in the same transaction. Repeating the same request returns the stored
+   * result; a different rating, or a session that is not in progress, is a CONFLICT.
    */
   async complete(userId: string, id: string, req: CompletePracticeSessionRequest): Promise<PracticeSession> {
-    const done = await this.repo.complete(userId, id, req.selfRating);
+    // shortcut: a learner who never set a timezone (skipped onboarding) is scheduled in UTC; onboarding requires one.
+    const timezone = (await this.auth.me(userId)).profile.timezone ?? 'UTC';
+    const done = await this.repo.complete(userId, id, req.selfRating, (tx, s) =>
+      this.reviews.scheduleFirstCompletion(tx, {
+        userId,
+        questionSetVersionId: s.questionSetVersionId,
+        sessionId: s.id,
+        timezone,
+        completedAt: s.completedAt ?? new Date(),
+      }),
+    );
     if (done) return this.view(done);
     const existing = await this.repo.findOwned(userId, id);
     if (!existing) throw new ApiException('NOT_FOUND', 'Practice session not found');

@@ -62,7 +62,16 @@ export function AccountMenu() {
       </summary>
       <div className="absolute right-0 z-30 mt-2 flex w-64 flex-col gap-1 rounded-md border border-line bg-surface p-2 shadow-2">
         <p className="type-caption truncate px-3 py-2 text-fg-secondary">{me.email}</p>
-        {!isOnboarded(me.profile) && (
+        {isOnboarded(me.profile) ? (
+          <>
+            <Link href="/practice" className={buttonClass({ variant: "ghost", fullWidth: true })}>
+              Luyện tập
+            </Link>
+            <Link href="/reviews" className={buttonClass({ variant: "ghost", fullWidth: true })}>
+              Ôn tập
+            </Link>
+          </>
+        ) : (
           <Link href="/onboarding" className={buttonClass({ variant: "ghost", fullWidth: true })}>
             Hoàn tất thiết lập
           </Link>

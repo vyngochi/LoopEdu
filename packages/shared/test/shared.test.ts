@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CreateBlueprintRequestSchema, DEFAULT_BLUEPRINT_RULES, MagicLinkRequestSchema, SECTIONS_BY_TRACK, UpdateProfileRequestSchema, reviewDueDates } from '../src/index.js';
+import { renderPlaceholders, CreateBlueprintRequestSchema, DEFAULT_BLUEPRINT_RULES, MagicLinkRequestSchema, SECTIONS_BY_TRACK, UpdateProfileRequestSchema, reviewDueDates } from '../src/index.js';
 
 describe('UpdateProfileRequestSchema', () => {
   it('accepts IANA timezones and rejects made-up ones', () => {
@@ -68,5 +68,14 @@ describe('CreateBlueprintRequestSchema', () => {
     const ielts = structuredClone(DEFAULT_BLUEPRINT_RULES.ielts);
     ielts.sections.ielts_p1!.speakSeconds = { min: 50, max: 40 };
     expect(CreateBlueprintRequestSchema.safeParse({ examType: 'ielts', rules: ielts }).success).toBe(false);
+  });
+});
+
+describe('renderPlaceholders (AC-PRACTICE-02)', () => {
+  it('fills defaults, falls back, and never leaves a raw placeholder', () => {
+    expect(renderPlaceholders('I am {{name}} in {{city}}.', { name: 'Lan', city: 'Hue' })).toBe('I am Lan in Hue.');
+    expect(renderPlaceholders('I am {{name}}.')).toBe('I am a learner.');
+    expect(renderPlaceholders('A {{ mystery }} fan')).toBe('A fan');
+    expect(renderPlaceholders('{{hobby}} and {{hobby}}')).toBe('reading and reading');
   });
 });

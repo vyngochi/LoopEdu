@@ -112,6 +112,11 @@ export class ContentAdminRepository {
     });
   }
 
+  async getBlueprint(id: string): Promise<BlueprintRow | null> {
+    const [row] = await this.db.select().from(examBlueprints).where(eq(examBlueprints.id, id));
+    return row ?? null;
+  }
+
   // ---- topics ----
 
   listTopics() {

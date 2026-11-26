@@ -25,7 +25,7 @@ export const refreshSession = () =>
   (refreshing ??= startSession("/auth/refresh", undefined).finally(() => (refreshing = null)));
 
 /** Gọi API cần đăng nhập. Chưa có token hoặc token hết hạn thì refresh một lần rồi thử lại. */
-async function authed<T>(method: "GET" | "PUT", path: string, body: unknown, schema: { parse(data: unknown): T }) {
+export async function authed<T>(method: "GET" | "POST" | "PUT", path: string, body: unknown, schema: { parse(data: unknown): T }) {
   if (!accessToken) await refreshSession();
   try {
     return await apiRequest(method, path, body, schema, accessToken);

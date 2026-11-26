@@ -30,6 +30,10 @@ export const QuestionContentSchema = z.looseObject({
   speaking_seconds: Seconds.optional(),
   idea_hints: z.array(z.string()).optional(),
   useful_expressions: z.array(z.string()).optional(),
+  // One sample for the whole set, or one per question (TOEIC). Placeholders are filled in by the API.
+  sample_answer: z.string().min(1).optional(),
+  sample_answers: z.array(z.string().min(1)).optional(),
+  personalization_defaults: z.record(z.string(), z.string()).optional(),
 });
 export type QuestionContent = z.infer<typeof QuestionContentSchema>;
 
@@ -70,6 +74,7 @@ export const QuestionSetSummarySchema = z.object({
   status: z.enum(['published', 'pending_review']),
 });
 export type QuestionSetSummary = z.infer<typeof QuestionSetSummarySchema>;
+export const QuestionSetListSchema = z.array(QuestionSetSummarySchema);
 
 export const QuestionSetDetailSchema = QuestionSetSummarySchema.extend({
   content: LearnerQuestionContentSchema,

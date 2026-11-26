@@ -8,6 +8,7 @@ import { RolesGuard } from './common/roles.guard.js';
 import * as schema from './db/schema/index.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { PracticeModule } from './modules/practice/practice.module.js';
 import { ContentAdminModule } from './modules/content-admin/content-admin.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
@@ -21,6 +22,7 @@ import { HealthModule } from './modules/health/health.module.js';
     AuthModule,
     CatalogModule,
     ContentAdminModule,
+    PracticeModule,
     HealthModule,
   ],
   providers: [

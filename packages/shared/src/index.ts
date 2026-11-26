@@ -5,3 +5,5 @@ export * from './learning.js';
 export * from './blueprint.js';
 export * from './catalog.js';
 export * from './content-admin.js';
+export * from './personalization.js';
+export * from './practice.js';

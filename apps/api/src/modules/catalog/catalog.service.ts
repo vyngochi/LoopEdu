@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   QuestionContentSchema,
   type LearnerQuestionContent,
+  type QuestionContent,
   type ListQuestionSetsQuery,
   type QuestionSetDetail,
   type QuestionSetSummary,
@@ -25,8 +26,7 @@ const toSummary = (r: Row): QuestionSetSummary => ({
 });
 
 /** Allow-list projection: sample answers, patterns and structure in content_json are never copied. */
-function toLearnerContent(json: unknown): LearnerQuestionContent {
-  const c = QuestionContentSchema.parse(json);
+function toLearnerContent(c: QuestionContent): LearnerQuestionContent {
   return {
     prompt: c.prompt,
     cuePoints: c.cue_points,
@@ -62,10 +62,37 @@ export class CatalogService {
     return (await this.repo.list(userId, { exam: q.exam, section: q.section, topicSlug: q.topic })).map(toSummary);
   }
 
+  /** The version a learner would study now: the current version of a set they may see, else NOT_FOUND. */
+  async resolveStartableVersion(userId: string, setId: string): Promise<string> {
+    const row = await this.repo.get(userId, setId);
+    if (!row) throw new ApiException('NOT_FOUND', 'Question set not found');
+    return row.versionId;
+  }
+
+  /** A pinned version for a session or review. No visibility check: the caller already proved ownership. */
+  async getVersion(versionId: string) {
+    const row = await this.repo.getVersion(versionId);
+    if (!row) throw new ApiException('NOT_FOUND', 'Question set version not found');
+    const raw = QuestionContentSchema.parse(row.contentJson);
+    return {
+      set: {
+        id: row.id,
+        topic: { id: row.topicId, slug: row.topicSlug, name: row.topicName },
+        examType: row.examType,
+        sectionCode: row.sectionCode,
+        difficulty: row.difficulty,
+        versionNo: row.versionNo,
+      },
+      content: toLearnerContent(raw),
+      raw,
+      blueprintId: row.blueprintId,
+    };
+  }
+
   /** A draft or another learner's pending set looks the same as a missing one, so ids cannot be probed. */
   async getQuestionSet(userId: string, id: string): Promise<QuestionSetDetail> {
     const row = await this.repo.get(userId, id);
     if (!row) throw new ApiException('NOT_FOUND', 'Question set not found');
-    return { ...toSummary(row), content: toLearnerContent(row.contentJson) };
+    return { ...toSummary(row), content: toLearnerContent(QuestionContentSchema.parse(row.contentJson)) };
   }
 }
